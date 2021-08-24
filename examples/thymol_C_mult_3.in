@@ -1,0 +1,58 @@
+###################################################
+###                                             ###
+###                                             ###
+###   Input file for probabilistic assignment   ###
+###                                             ###
+###           Thymol, carbon spectrum           ###
+###                                             ###
+###                                             ###
+###################################################
+
+# System parameters
+$SYS
+  db_root = "../db/" 
+  out_root = "../output/"
+  max_w = 6
+  N_min = 10
+  elems = ["H", "C", "N", "O", "S"]
+  hetatm = "error"
+  hetatm_rep = none
+  exclude = none
+  save_individual_distribs = true
+  verbose = true
+	
+$END
+
+# Molecule parameters
+$MOL
+  name = "thymol"
+  input = "Cc1cc(O)c(cc1)C(C)C"
+  in_type = "smi"
+  from_file = false
+  out_type = "mol"
+  make_3d = false
+  save_struct = true
+$END
+
+# NMR parameters
+$NMR
+  elem = "C"
+  nei_elem = none
+  n_points_distrib = 1001
+  assign = true
+  shifts = [18.7, 23.6, 25.5, 26.1, 116.9, 123.6, 126.3, 131.7, 138.4, 150.2]
+  multiplicities = [3, 3, 1, 3, 1, 1, 1, 0, 0, 0]
+$END
+
+# Assignment parameters
+$ASN
+  p_thresh = 100.
+  thresh_increase = "+1"
+  select_mult = 3
+  max_asn = none
+  r_max_asn = 0
+  asn_order = "default"
+  disp_r = 2
+  max_excess = 4
+  pool_inds = none
+$END

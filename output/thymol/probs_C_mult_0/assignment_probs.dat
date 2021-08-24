@@ -1,0 +1,8 @@
+Ambiguity between C2, C4, C5
+Corresponding shifts: 131.70, 138.40, 150.20
+Mapping 3 distributions on 3 shifts (4 possible assignments)
+C2        138.40        131.70        150.20        131.70
+C4        150.20        150.20        138.40        138.40
+C5        131.70        138.40        131.70        150.20
+ P  94.07330973%   5.02622226%   0.88072949%   0.01973852%
+

@@ -2,601 +2,380 @@
 ###                                                                                              ###
 ###                        Functions for graph handling (creation, ...)                          ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 10.05.2021                                     ###
+###                                Last modified: 19.08.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
 
 # Import libraries
-import numpy as np
-import os
-import sys
-import ase
-import ase.io
-import ase.neighborlist
 import networkx as nx
 from openbabel import pybel as pb
-import itertools as it
 import matplotlib.pyplot as plt
 
 
 
-def generate_conformer(smi):
+def make_mol(mol_in, in_type="smi", out_type="mol", from_file=False, name="", make_3d=False, save=None):
     """
-    Generate a gas-phase conformer of a molecule from its SMILES representation
+    Generate a molfile from the SMILES representation of the molecule
     
-    Input:  - smi       SMILES representation of the molecule
+    Inputs: - mol_in        Input molecule
+            - in_type       Type of input
+            - out_type      Type of output
+            - from_file     Whether mol_in is a string (False) or points to a file (True)
+            - name          Name of the molecule
+            - make_3d       Whether to make
+            - save          If set, defines the file to which the molfile should be saved
     
-    Output: - struct    ASE object containing the conformer generated
+    Output: - mol           OBMol object of the molecule
     """
     
-    # Read the string and convert to mol format
-    mol = pb.readstring("smi", smi)
+    if from_file:
+        # Read the input file
+        mol = next(pb.readfile(in_type, mol_in))
+    else:
+        # Read the input string
+        mol = pb.readstring(in_type, mol_in)
+    
+    # Set molecule name
+    mol.title = name
     # Add implicit hydrogens
     mol.addh()
-    # Generate 3D coordinates
-    mol.make3D()
-    # Optimize the conformer using force-field
-    mol.localopt(forcefield="mmff94", steps=1000)
     
-    # Get the molecule in xyz format
-    pp = mol.write("xyz")
+    if make_3d:
+        # Make 3D coordinates
+        mol.make3D()
+    else:
+        # Make 2D coordinates for drawing
+        mol.make2D()
+    
+    # Convert the molecule into the output format
+    pp = mol.write(out_type)
+    
+    # Save molecule to file
+    if save is not None:
+        with open(save, "w") as F:
+            F.write(pp)
+    
+    return mol
+
+
+
+def get_bonds(mol):
+    """
+    Identify the bonds in a molecule
+    
+    Input:      - mol       OBMol object of the molecule
+    
+    Outputs:    - atoms     List of atoms in the molecule
+                - bonds     List of bonded atoms for each atom in the molecule
+    """
+    
+    # Get molfile of the molecule
+    pp = mol.write("mol")
     lines = pp.split("\n")
     
-    # Initialize arrays of atomic symbols and positions
-    symbs = []
-    pos = []
+    # Get number of atoms
+    n_atoms = len(mol.atoms)
+    # Initialize arrays of neighbours
+    bonds = [[] for _ in mol.atoms]
+    # Initialize array of atoms
+    atoms = []
     
-    # Get number of atoms in the molecule
-    n_atoms = int(lines[0])
+    # Parse the atom block
+    for l in lines[4:n_atoms + 4]:
+        atoms.append(l.split()[3])
     
-    # Get the coordinates and elements of each atom
-    for i in range(n_atoms):
-        tmp = lines[i+2].split()
-        symbs.append(tmp[0])
-        pos.append([float(tmp[1]), float(tmp[2]), float(tmp[3])])
+    # Parse the bond block
+    for l in lines[n_atoms + 4:]:
     
-    # Return ASE object
-    return ase.Atoms(symbols=symbs, positions=pos)
-
-
-
-def get_cutoffs(elems, factor):
-    """
-    Get cutoffs for identifying covalent bonds
-    
-    Inputs: - elems     Elements present in the molecule
-            - factor    Tolerance factor for the identification of covalent bonds
-    
-    Output: - cutoffs   Cutoffs for every possible pair of elements in the structure
-    """
-    
-    # Initialize dictionnary of cutoffs
-    cutoffs = {}
-    
-    # Loop over all pairs of elements:
-    for e1 in elems:
-        for e2 in elems:
-            # Get the cutoff as the (sum of covalent radii) * factor
-            cutoffs[(e1, e2)] = round((ase.data.covalent_radii[ase.data.atomic_numbers[e1]]+ase.data.covalent_radii[ase.data.atomic_numbers[e2]])*factor, 6)
-    
-    return cutoffs
-
-
-
-def get_neighbours(struct, cutoffs):
-    """
-    Obtain covalent bonds from a 3D structure (crystal or single molecule)
-    
-    Inputs: - struct    ASE object of the 3D structure
-            - cutoffs   Cutoffs for each pair of atoms
-
-    Output: - neis      Neighbours of each atom in the structure
-    """
-    
-    # Get neighbour list
-    a, b = ase.neighborlist.neighbor_list("ij", struct, cutoffs, self_interaction=False)
-    
-    # Initialize array of neighbours
-    neis = []
-    
-    # Append neighbours
-    for i in range(len(struct)):
-        ia = np.where(a == i)
-        neis.append(list(b[ia]))
-    return neis
-
-
-
-def get_envs_from_smiles(smi, elems=["H", "C", "N", "O", "S"], cutoff_factor=1.1):
-    """
-    Obtain topological chemical environments from a SMILES string
-    
-    Inputs:     - smi               SMILES representation of the molecule
-                - elems             Possible elements in the structure
-                - cutoff_factor     Factor for the tolerance of covalent bonds
-                
-    Outputs:    - struct            Structure of the conformer generated
-                - neighbour_inds    Neighbouring indices for each atom
-                - neighbour_atoms   Neighbouring atoms for each atom
-                - envs              Environments (first neighbours) of each atom
-    """
-    
-    # First, generate the 3D coordinates (in the gas phase) of the molecule
-    struct = generate_conformer(smi)
-    
-    # Get cutoffs for the neighbour lists:
-    cutoffs = get_cutoffs(elems, cutoff_factor)
-    
-    # Initialize neighbour lists for each element
-    neighbour_inds = {}
-    neighbour_atoms = {}
-    envs = {}
-    
-    for e in elems:
-        neighbour_inds[e] = []
-        neighbour_atoms[e] = []
-        envs[e] = []
-    
-    # Get the elements in the structure
-    symbs = struct.get_chemical_symbols()
-    
-    # Construct neighbour list
-    neis = get_neighbours(struct, cutoffs)
-    
-    # Loop over all atoms in the structure
-    for i, s in enumerate(symbs):
-        # Get the indices of the neighbours of atom i
-        inds_nei = neis[i]
+        # Detect end of file
+        if "END" in l or len(l.split()) != 7:
+            break
         
-        # Get the elements of the neighbours
-        elems_nei = [symbs[k] for k in inds_nei]
+        bond = [int(li)-1 for li in l.split()[:2]]
         
-        # Get the indices of individual elements [k-th carbon, ...]
-        sep_inds_nei = []
-        for k, e in zip(inds_nei, elems_nei):
-            sep_inds_nei.append(symbs[:k].count(e))
-        
-        # Initialize arrays of neighbours for atom i
-        sorted_elems_nei = []
-        sorted_inds_nei = []
-        sorted_sep_inds_nei = []
-        
-        # Standardize the neighbours to be in alphabetical order of element
-        for e, j in sorted(zip(elems_nei, range(len(elems_nei)))):
-            sorted_elems_nei.append(e)
-            sorted_inds_nei.append(inds_nei[j])
-            sorted_sep_inds_nei.append(sep_inds_nei[j])
-        
-        # Get the environment name
-        nei_str = "-".join(sorted_elems_nei)
-        
-        # Append the neighbours to the list
-        neighbour_inds[s].append(sorted_sep_inds_nei)
-        neighbour_atoms[s].append(sorted_elems_nei)
-        envs[s].append(nei_str)
-    
-    return struct, neighbour_inds, neighbour_atoms, envs
+        # Update the list of bonds
+        bonds[bond[0]].append(bond[1])
+        bonds[bond[1]].append(bond[0])
+
+    return atoms, bonds
 
 
 
-def generate_neighbour_list(struct, elems=["H", "C", "N", "O", "S"], cutoff_factor=1.1):
+def identify_env(G):
     """
-    Obtain topological chemical environments from a SMILES string
-    
-    Inputs:     - struct            ASE object of the molecule
-                - elems             Possible elements in the structure
-                - cutoff_factor     Factor for the tolerance of covalent bonds
-                
-    Outputs:    - struct            Structure of the conformer generated
-                - neighbour_inds    Neighbouring indices for each atom
-                - neighbour_atoms   Neighbouring atoms for each atom
-                - envs              Environments (first neighbours) of each atom
-    """
-    
-    # Get cutoffs for the neighbour lists:
-    cutoffs = get_cutoffs(elems, cutoff_factor)
-    
-    # Initialize neighbour lists for each element
-    neighbour_inds = {}
-    neighbour_atoms = {}
-    envs = {}
-    
-    for e in elems:
-        neighbour_inds[e] = []
-        neighbour_atoms[e] = []
-        envs[e] = []
-    
-    # Get the elements in the structure
-    symbs = struct.get_chemical_symbols()
-    
-    # Construct neighbour list
-    neis = get_neighbours(struct, cutoffs)
-    
-    # Loop over all atoms in the structure
-    for i, s in enumerate(symbs):
-        # Get the indices of the neighbours of atom i
-        inds_nei = neis[i]
-        
-        # Get the elements of the neighbours
-        elems_nei = [symbs[k] for k in inds_nei]
-        
-        # Get the indices of individual elements [k-th carbon, ...]
-        sep_inds_nei = []
-        for k, e in zip(inds_nei, elems_nei):
-            sep_inds_nei.append(symbs[:k].count(e))
-        
-        # Initialize arrays of neighbours for atom i
-        sorted_elems_nei = []
-        sorted_inds_nei = []
-        sorted_sep_inds_nei = []
-        
-        # Standardize the neighbours to be in alphabetical order of element
-        for e, j in sorted(zip(elems_nei, range(len(elems_nei)))):
-            sorted_elems_nei.append(e)
-            sorted_inds_nei.append(inds_nei[j])
-            sorted_sep_inds_nei.append(sep_inds_nei[j])
-        
-        # Get the environment name
-        nei_str = "-".join(sorted_elems_nei)
-        
-        # Append the neighbours to the list
-        neighbour_inds[s].append(sorted_sep_inds_nei)
-        neighbour_atoms[s].append(sorted_elems_nei)
-        envs[s].append(nei_str)
-    
-    return neighbour_inds, neighbour_atoms, envs
-
-
-
-def get_graph_neighbours(center, nei_inds, nei_atoms):
-    """
-    Obtain neighbours of node "center" in a graph
-    
-    Inputs: - center        Tuple (element, index) of the central node
-            - nei_inds      List of neighbouring indices
-            - nei_atoms     List of neighbouring chemical symbols
-            
-    Output: - neis          List of neighbours of the central node
-    """
-    
-    # Initialize the array of neighbours
-    neis = []
-    
-    # Retrieve element and index of the central node
-    c_e = center[0]
-    c_i = center[1]
-    
-    # Obtain all neighbours
-    for n, e in zip(nei_inds[c_e][c_i], nei_atoms[c_e][c_i]):
-        neis.append((e, n))
-    
-    return neis
-
-
-
-def generate_graph(nodes, bonds):
-    """
-    Generate a graph given a list of nodes and bonds
-    
-    Inputs: - nodes     List of tuples containing the elements and indices of the atoms in the graph
-            - bonds     Bonds to generate edges of the graph
-            
-    Output: - G         networkx graph object
-    """
-    
-    # Initialize networkx graph object
-    G = nx.Graph()
-    
-    # Append each node to the graph
-    for i, n in enumerate(nodes):
-        G.add_node(i, elem=n[0], ind=n[1])
-            
-    # Get list of indices of the nodes
-    inds = nx.get_node_attributes(G, "ind")
-    
-    # Loop over all pairs of nodes
-    for i, n in enumerate(nodes):
-        for j, m in enumerate(nodes[i+1:]):
-            pair = (n, m)
-            for p in it.permutations(pair):
-                # If there is a bond between the two nodes, add an edge to the graph
-                if p in bonds:
-                    G.add_edge(i, i+j+1, w="1")
-                    break
-    return G
-
-
-
-def get_nodes(G):
-    """
-    Get the nodes in a graph
-    
-    Inputs: - G         Input graph
-    
-    Output: - nodes     List of nodes in the graph G
-    """
-    
-    # Initialize the array of nodes
-    nodes = []
-    # Get the elements and indices of each node
-    elems = nx.get_node_attributes(G, "elem")
-    inds = nx.get_node_attributes(G, "ind")
-    
-    # Generate the array of nodes
-    for i in range(G.number_of_nodes()):
-        nodes.append((elems[i], inds[i]))
-    return nodes
-
-
-
-def extend_graph(G, nei_inds, nei_ats, max_w):
-    """
-    Extend graph towards max_w
-    
-    Inputs:     - G         Initial graph
-                - nei_inds  Neighbour indices for each atom
-                - nei_ats   Neighbour atoms for each atom
-                - max_w     Maximum depth of the graph
-    
-    Outputs:    - G         New (extended) graph
-                - change    Whether the graph changed or not
-    """
-    
-    # Initialize change variable
-    change = False
-    # Get number of nodes in the initial graph
-    N = G.number_of_nodes()
-    
-    # Loop over all nodes in the initial graph
-    for i in range(N):
-        # Update the list of nodes in the graph
-        nodes = get_nodes(G)
-        # Get neighbours of node i
-        neis = get_graph_neighbours(nodes[i], nei_inds, nei_ats)
-        for n in neis:
-            # If the neighbouring atom is not in the initial graph, add it
-            if n not in nodes:
-                G.add_node(N, elem=n[0], ind=n[1])
-                G.add_edge(i, N, w="1")
-                
-                # Check that the new node is within max_w, otherwise remove it
-                if nx.shortest_path_length(G, source=0, target=N) > max_w:
-                    G.remove_node(N)
-                else:
-                    # Update the number and list of nodes in the graph
-                    N += 1
-                    nodes = get_nodes(G)
-                    change = True
-            # If the neighbouring atom is in the initial graph, just add the edge
-            else:
-                G.add_edge(i, nodes.index(n), w="1")
-    
-    return G, change
-
-
-
-def generate_graphs(elem, envs, nei_inds, nei_atoms, max_weight):
-    """
-    Generate all the graphs for one element given a list of neighbours
-    
-    Inputs: - elem          Element to generate the graphs for
-            - envs          Environments around each atom (first coordination shell)
-            - nei_inds      Neighbour indices for each atom
-            - nei_atoms     Neighbour atoms for each atom
-            - max_weight    Maximum depth of the graph
-    
-    Output: - Gs            List of graphs for each atom of the given element
-    """
-    Gs = []
-    for i, e in enumerate(envs[elem]):
-        # Initialize nodes and bonds for graph construction
-        nodes = [(elem, i)]
-        bonds = []
-
-        # Get the neighbours of the central atom
-        neighbours = get_graph_neighbours(nodes[0], nei_inds, nei_atoms)
-        for nei in neighbours:
-            nodes.append(nei)
-            bonds.append((nodes[0], nei))
-
-        # Generate initial graph (w = 1)
-        G = generate_graph(nodes, bonds)
-
-        # Extend the graph until the max depth
-        change = True
-        while change:
-            G, change = extend_graph(G, nei_inds, nei_atoms, max_weight)
-
-        # Append to the array of graphs
-        Gs.append(G)
-    
-    return Gs
-
-
-
-def generate_hash(G):
-    """
-    Generate the hash corresponding to a graph
+    Identify the environment of the central node (index 0) of a graph
     
     Input:  - G     Input graph
-
-    Output: - H     Hash corresponding to graph G
+    
+    Output: - env   environment of the central node in G
     """
     
-    # Replacing the central element by "Y" in order to make sure that isomorphism correctly identifies the central node
-    G2 = G.copy()
-    G2.nodes[0]["elem"] = "Y"
+    # Initialize array of neighbouring elements
+    nei_elems = []
+    # Identify all nodes bonded to the central node
+    for e in G.edges:
+        
+        if 0 in e:
+            # Get neighbour atom
+            if e[0] == 0:
+                i = e[1]
+            else:
+                i = e[0]
+            # Update array of neighbouring elements
+            nei_elems.append(G.nodes[i]["elem"])
     
-    return nx.algorithms.graph_hashing.weisfeiler_lehman_graph_hash(G2, edge_attr="w", node_attr="elem", iterations=5)
+    # Return the environment in string format,
+    #   with neighbours sorted alphabetically
+    return "-".join(sorted(nei_elems))
 
 
 
+def generate_graph(atoms, bonds, i0, max_w, elems=["H", "C", "N", "O", "S"], hetatm="error", hetatm_rep=None):
+    """
+    Generate a graph from atom i0 using the list of atoms and bonds in the molecule
+    
+    Inputs:     - atoms             List of atoms in the molecule
+                - bonds             Bonded atoms for each atom in the molecule (by index)
+                - i0                Index of the central atom in the graph
+                - max_w             Maximum graph depth
+                - elems             Allowed elements in the molecule
+                - hetatm            Behaviour for handling unknown elements:
+                                        "error": raise an error
+                                        "ignore": ignore the atom
+                                        "replace": replace the atom with another element
+                                        "replace_and_terminate": replace the atom with another element and
+                                            cut all bonds from this atom
+                - hetatm_rep        Dictionary of replacements for unknown elements
+                                        (used only with hetatm set to "replace" or "replace_and_terminate")
+    
+    Outputs:    - G                 Graph generated
+                - env               Environment of the central node
+    """
+    
+    # The maximum depth should be at least one
+    if max_w < 1:
+        raise ValueError("max_weight should be at least 1, not {}".format(max_w))
+
+    # Initialize graph object
+    G = nx.Graph()
+    # Add central node
+    G.add_node(0, elem=atoms[i0], ind=i0)
+    
+    # Initialize number of nodes in the graph and atom index of each node
+    N = G.number_of_nodes()
+    node_inds = [G.nodes[i]["ind"] for i in range(N)]
+    
+    # Loop over all nodes
+    i = 0
+    while i < N:
+        # Identify the atoms bonded to that node
+        for j in bonds[node_inds[i]]:
+            
+            at = atoms[j]
+            # Handle invalid elements
+            if at not in elems:
+                # Raise an error
+                if hetatm == "error":
+                    raise ValueError("Invalid element found: {}".format(at))
+                # Ignore the atom
+                elif hetatm == "ignore":
+                    continue
+                # Replace the atom with another element
+                elif hetatm == "replace":
+                    at = hetatm_rep[at]
+                # Replace the atom with another element and cut all bonds from this atom
+                elif hetatm == "replace_and_terminate":
+                    at = hetatm_rep[at]
+                    bonds[j] = []
+                else:
+                    raise ValueError("Invalid behaviour for unknown elements: {}".format(hetatm))
+                    
+            # If a new node is found, add it to the graph
+            if j not in node_inds:
+                G.add_node(N, elem=at, ind=j)
+                G.add_edge(i, N, w="1")
+                
+                # If the new node is too far away, remove it
+                if nx.shortest_path_length(G, source=0, target=N) > max_w:
+                    G.remove_node(N)
+                # Otherwise, keep it and update the total number of nodes and the atom index of each node
+                else:
+                    N += 1
+                    node_inds = [G.nodes[i]["ind"] for i in range(N)]
+            # If the bonde node is already in the graph, just add the edge
+            else:
+                G.add_edge(i, node_inds.index(j), w="1")
+        
+        # Proceed to the next node
+        i += 1
+
+    # Get the environment of the central node
+    env = identify_env(G)
+
+    return G, env
+
+
+
+def generate_graphs(atoms, bonds, elem, max_w, elems=["H", "C", "N", "O", "S"], hetatm="error", hetatm_rep=None):
+    """
+    Generate graphs for all atoms of a given element in the molecule
+    
+    Inputs:     - atoms             List of atoms in the molecule
+                - bonds             Bonded atoms for each atom in the molecule (by index)
+                - elem              Element for which to construct the graphs
+                - max_w             Maximum graph depth
+                - elems             Allowed elements in the molecule
+                - hetatm            Behaviour for handling unknown elements:
+                                        "error": raise an error
+                                        "ignore": ignore the atom
+                                        "replace": replace the atom with another element
+                                        "replace_and_terminate": replace the atom with another element and
+                                            cut all bonds from this atom
+                - hetatm_rep        Dictionary of replacements for unknown elements
+                                        (used only with hetatm set to "replace" or "replace_and_terminate")
+    
+    Outputs:    - Gs
+                - envs
+    """
+    
+    # Initialize arrays of graphs and environments
+    Gs = []
+    envs = []
+
+    # Loop over all atoms
+    for i, at in enumerate(atoms):
+        # Identify the atoms for which a graph should be constructed
+        if at == elem:
+            # Construct the graph
+            G, env = generate_graph(atoms, bonds, i, max_w, elems=elems, hetatm=hetatm, hetatm_rep=hetatm_rep)
+            Gs.append(G)
+            envs.append(env)
+
+    return Gs, envs
+    
+    
+    
 def cut_graph(G, w):
     """
     Cut a graph down to a given depth
     
-    Inputs: - G     Input graph
-            - w     Depth to cut to
-
-    Output: - G2    Cut graph
+    Inputs: - G         Input graph
+            - w         Depth to cut to
+    
+    Output: - cut_G     Cut graph
     """
     
     # Copy the initial graph and get the number of nodes
     cut_G = G.copy()
     N = len(G.nodes)
     
+    # Check all nodes
     for i in range(N):
         # If the depth is greater than w, remove the node
         if nx.shortest_path_length(G, source=0, target=i) > w:
             cut_G.remove_node(i)
-
+    
     return cut_G
 
 
 
-def check_isomorphism_hash(G, g, nm, em):
+def generate_hash(G):
     """
-    Check whether two graphs are isomorphic, using hashing of the two graphs
-    
-    Inputs: - G             First graph object
-            - g             Second graph object
-            - nm            Criterion for node matching
-            - em            Criterion for edge matching
+    Generate the Weisfeiler-Lehman hash corresponding to a graph
 
-    Output: - True/False
+    Input:  - G     Input graph
+
+    Output: - H     Hash corresponding to graph G
     """
-    
-    # Generate the hash for each graph
-    G_h = generate_hash(G)
-    g_h = generate_hash(g)
-    
-    # Compare the hashes
-    if G_h == g_h:
-        return True
-    return False
+
+    # Replace the central element by "Y" in order to make sure that the hash correctly identifies the central node
+    G2 = G.copy()
+    G2.nodes[0]["elem"] = "Y"
+
+    return nx.algorithms.graph_hashing.weisfeiler_lehman_graph_hash(G2, edge_attr="w", node_attr="elem", iterations=5)
 
 
 
-def get_corresponding_ind(G, G_ref, ind, nm, em, N, i_already=[]):
+def print_graph(G, w, layout="kamada_kawai", base_color="C0", center_color="r", out_color="g", show=True, save=None):
     """
-    Get the index corresponding to node N[ind] in the reference graph
-    
-    Inputs: - G             Input graph
-            - G_ref         Reference graph
-            - ind           Index of G_ref to find a correspondence for
-            - nm            Criterion for node matching
-            - em            Criterion for edge matching
-            - N             Number of first neighbours
-            - i_already     Indexes already considered
-    
-    Output: - i             Index of G corresponding to index "ind" of G_ref
+    Plot a graph at a given depth
+
+    Inputs: - G                 Networkx graph object
+            - w                 Maximum depth to display
+            - layout            Node layout for plotting
+            - base_color        Base color of nodes
+            - center_color      Color of the central node
+            - out_color         Color of nodes at the maximum graph depth
+            - show              Whether the plot should be shown or not
+            - save              If set, defines the file to save the plot to
     """
-    
-    # Replace the node in the reference graph
-    mod_G_ref = G_ref.copy()
-    mod_G_ref.nodes[ind]["elem"] = "Z"
-    
-    # Loop over all first neighbours
-    for i in range(1, N+1):
-        if i not in i_already:
-            # Replace the node in the current graph
-            mod_G = G.copy()
-            mod_G.nodes[i]["elem"] = "Z"
-            # Check isomorphism
-            if check_isomorphism_hash(mod_G, mod_G_ref, nm, em):
-                return i
-    return -1
 
+    # Cut the graph to the maximum depth
+    cut_G = cut_graph(G, w)
 
+    # Get the label (element) of each node
+    labs = nx.get_node_attributes(cut_G, "elem")
 
-def get_corresponding_inds(G, G_ref, nm, em, N, sel_elems=["H", "C", "N", "O"]):
-    """
-    Get the indices corresponding to the fist neighbours in the reference graph
-    
-    Inputs:     - G             Input graph
-                - G_ref         Reference graph
-                - nm            Criterion for node matching
-                - em            Criterion for edge matching
-                - N             Number of first neighbours
-                - sel_elems     Elements to consider
-    
-    Outputs:    - ref_inds      Indices of the reference graph
-                - corr_inds     Indices of the graph correspdonding to ref_inds
-    """
-    
-    # Get the first neighbours in the reference graph
-    ref_inds = []
-    for i in range(1, N+1):
-        if G_ref.nodes[i]["elem"] in sel_elems:
-            ref_inds.append(i)
-    
-    # For each first neighbour, get the corresponding first neighbour in the graph G
-    corr_inds = []
-    for i in ref_inds:
-        corr_inds.append(get_corresponding_ind(G, G_ref, i, nm, em, N, i_already=corr_inds))
-        
-    return ref_inds, corr_inds
+    # Set node layout
+    if layout == "kamada_kawai":
+        # Get the position of each node on the plot
+        pos = nx.kamada_kawai_layout(cut_G)
+    elif layout == "circular":
+        pos = nx.circular_layout(cut_G)
+    elif layout == "planar":
+        pos = nx.planar_layout(cut_G)
+    elif layout == "random":
+        pos = nx.random_layout(cut_G)
+    elif layout == "shell":
+        pos = nx.shell_layout(cut_G)
+    elif layout == "spring":
+        pos = nx.spring_layout(cut_G)
+    elif layout == "spectral":
+        pos = nx.spectral_layout(cut_G)
+    elif layout == "spiral":
+        pos = nx.spiral_layout(cut_G)
+    else:
+        raise ValueError("Unknown layout: {}".format(layout))
 
-
-
-def print_graph(G, max_weight, show=True, save=None):
-    """
-    Plot a graph
-    
-    Inputs: - G             networkx graph object
-            - max_weight    Maximum depth of the graph
-            - show          Whether the plot should be shown or not
-            - save          Path to save the plot to
-    """
-    
-    # Get the label of each node
-    labs = nx.get_node_attributes(G, "elem")
-    # Get the position of each node on the plot
-    pos = nx.kamada_kawai_layout(G)
-    
+    # Initialize figure handle
     f = plt.figure(figsize=(6,5))
     ax = f.add_subplot(1,1,1)
-    
-    # Get the nodes within max_weight
-    inds = []
-    for i in range(G.number_of_nodes()):
-        if nx.shortest_path_length(G, source=0, target=i) < max_weight:
-            inds.append(i)
-    
+
     # Draw the nodes
-    nx.draw_networkx_nodes(G, pos, nodelist=inds, ax=ax)
+    nx.draw_networkx_nodes(cut_G, pos, ax=ax, node_color=base_color)
+
     # Draw the central node in red
-    nx.draw_networkx_nodes(G, pos, nodelist=[0], node_color="r", ax=ax)
-    
+    nx.draw_networkx_nodes(cut_G, pos, nodelist=[0], node_color=center_color, ax=ax)
+
     # Draw the edge nodes in green
     edge_nodes = []
-    for i in range(G.number_of_nodes()):
-        if nx.shortest_path_length(G, source=0, target=i) == max_weight:
+    for i in range(cut_G.number_of_nodes()):
+        if nx.shortest_path_length(cut_G, source=0, target=i) == w:
             edge_nodes.append(i)
-    nx.draw_networkx_nodes(G, pos, nodelist=edge_nodes, node_color="g", ax=ax)
-    
-    # Get the convalent bonds and H-bonds
+    nx.draw_networkx_nodes(cut_G, pos, nodelist=edge_nodes, node_color=out_color, ax=ax)
+
+    # Get the covalent bonds and H-bonds
     H_e = []
     es = []
-    for i, e in enumerate(G.edges(inds)):
-        if G.edges[e]["w"] == 0:
+    for i, e in enumerate(cut_G.edges):
+        if cut_G.edges[e]["w"] == 0:
             H_e.append(e)
         else:
             es.append(e)
-    
+
     # Draw the edges
-    nx.draw_networkx_edges(G, pos, edgelist=es, ax=ax)
-    nx.draw_networkx_edges(G, pos, edgelist=H_e, style="dashed", ax=ax)
-    
+    nx.draw_networkx_edges(cut_G, pos, edgelist=es, ax=ax)
+    nx.draw_networkx_edges(cut_G, pos, edgelist=H_e, style="dashed", ax=ax)
+
     # Draw the labels on the nodes
-    nx.draw_networkx_labels(G, pos, labs, ax=ax)
-    
+    nx.draw_networkx_labels(cut_G, pos, labs, ax=ax)
+
     f.tight_layout()
-    
+
     # Show the plot
     if show:
         plt.show()
-        
+
     # Save the plot
     if save:
         if save.endswith(".png"):

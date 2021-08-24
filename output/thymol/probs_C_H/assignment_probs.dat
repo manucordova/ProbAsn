@@ -1,0 +1,18 @@
+Unambiguous assignments:
+        C3-H4             116.90\5.40
+        C8-H8              25.50\3.38
+
+Ambiguity between C1-H1, C9-H9, C10-H12
+Corresponding shifts: 18.70\0.42, 23.60\1.45, 26.10\1.05
+Mapping 3 distributions on 3 shifts (2 possible assignments)
+        C1-H1              23.60\1.45              18.70\0.42
+C9-H9/C10-H12   18.70\0.42/26.10\1.05   23.60\1.45/26.10\1.05
+            P             88.3110582%             11.6889418%
+
+Ambiguity between C6-H6, C7-H7
+Corresponding shifts: 123.60\6.19, 126.30\7.08
+Mapping 2 distributions on 2 shifts (2 possible assignments)
+        C6-H6             123.60\6.19             126.30\7.08
+        C7-H7             126.30\7.08             123.60\6.19
+            P            86.31025093%            13.68974907%
+

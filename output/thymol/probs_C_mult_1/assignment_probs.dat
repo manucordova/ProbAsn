@@ -1,0 +1,11 @@
+Unambiguous assignments:
+C8         25.50
+
+Ambiguity between C3, C6, C7
+Corresponding shifts: 116.90, 123.60, 126.30
+Mapping 3 distributions on 3 shifts (4 possible assignments)
+C3        116.90        116.90        123.60        126.30
+C6        123.60        126.30        116.90        116.90
+C7        126.30        123.60        126.30        123.60
+ P  77.67293023%   22.0210838%   0.29429659%   0.01168938%
+
