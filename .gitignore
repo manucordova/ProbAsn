@@ -136,3 +136,7 @@ db/H*
 db/C*
 db/N*
 db/O*
+
+# Working directories
+working_dir/
+working_out/
