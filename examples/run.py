@@ -310,7 +310,7 @@ if nmr_params["assign"]:
     (dist_pools, shift_pools,
      pool_asns, pool_scores,
      all_labels, equivs) = asn.get_probabilistic_assignment(scores, possible_assignments,
-                                                            nmr_params["shifts"], labels,
+                                                            exp_shifts, labels,
                                                             max_asn=asn_params["max_asn"],
                                                             r_max_asn=asn_params["r_max_asn"],
                                                             order=asn_params["asn_order"],

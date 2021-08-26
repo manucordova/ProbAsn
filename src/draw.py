@@ -52,7 +52,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 
 
 
-def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.1, c="k", N_valid=int(1e6)):
+def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.1, c="k", N_valid=int(1e4)):
     """
     Place labels on a 1D plot of distributions
 
@@ -119,7 +119,8 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
     while not valid:
         n += 1
         if n > N_valid:
-            raise ValueError("No valid placement found. Increase the width of the plot.")
+            print("No valid placement found. Increasing the width of the plot...")
+            return False
         valid = True
         # Loop over all neighbouring label pairs
         for i in range(1, len(places)):
@@ -156,7 +157,7 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
         else:
             raise ValueError("Unknown color scheme: {}".format(c))
 
-    return
+    return True
 
 
 
@@ -313,7 +314,7 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
 
 
 
-def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=None, fsize=(6,3), fontsize=12, dMin=0.001, c="C", display=False):
+def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=None, fsize="auto", fontsize=12, dMin=0.001, c="C", display=False):
     """
     Plot the 1D chemical shift distributions for a molecule
 
@@ -339,26 +340,37 @@ def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=Non
     tops = sim.get_distribution_max_1D(x, ys)
     
     sorted_inds = np.argsort(tops)
-
-    # Initialize figure handle
-    fig = plt.figure(figsize=fsize)
-    ax = fig.add_subplot(1,1,1)
-
-    # Plot the distributions
-    for i in sorted_inds:
-        ax.plot(x*conv[0]+conv[1], ys[i])
-
-    ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
     
-    ax.spines["top"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    if fsize == "auto":
+        fsize = (6,3)
+    
+    success = False
+    while not success:
 
-    ax.set_xlim(lims[0]*conv[0]+conv[1], lims[1]*conv[0]+conv[1])
-    ax.set_yticks([])
+        # Initialize figure handle
+        fig = plt.figure(figsize=fsize)
+        ax = fig.add_subplot(1,1,1)
 
-    # Place annotations on the plot
-    place_annot_1D(tops, lims, conv, labels, fig, ax, fontsize=fontsize-2, dMin=dMin, c=c)
+        # Plot the distributions
+        for i in sorted_inds:
+            ax.plot(x*conv[0]+conv[1], ys[i])
+
+        ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
+        
+        ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        ax.set_xlim(lims[0]*conv[0]+conv[1], lims[1]*conv[0]+conv[1])
+        ax.set_yticks([])
+
+        # Place annotations on the plot
+        success = place_annot_1D(tops, lims, conv, labels, fig, ax, fontsize=fontsize-2, dMin=dMin, c=c)
+        
+        if not success:
+            tmp = list(fsize)
+            tmp[0] += 2
+            fsize = tuple(tmp)
 
     # Plot the experimental shifts
     if exps is not None:
