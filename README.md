@@ -9,13 +9,13 @@ This is the code for the paper "Bayesian Probabilistic Assignment of Chemical Sh
 
 You first need to install Python and the libraries required to run the software:
 
-- Python 3 (3.8)
-- numpy (version 1.20.3)
-- ase (version 3.19.0)
-- openbabel (version 3.1.0)
-- networkx (version 2.5)
+- Python 3
+- numpy (>=1.20.3)
+- ase (>=3.19.0)
+- openbabel (>=3.1.0)
+- networkx (>=2.5)
 
-Alternatively, a Python environment containing all the required libraries can be installed by running the "install_env.sh" script.
+Alternatively, a Python environment containing all the required libraries can be installed by running the "install_env.sh" script (requires anaconda to be installed: https://www.anaconda.com)
 
 ## Database
 
