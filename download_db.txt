@@ -1,3 +1,0 @@
-The database is available from: https://drive.google.com/drive/folders/1vqzamV5kXTM8ggIeD3HSXQ7efdqJjY0a?usp=sharing
-
-Place the downloaded directories in the "db" directory
