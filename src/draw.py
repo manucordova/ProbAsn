@@ -589,7 +589,7 @@ def print_probabilities(f, fontsize=12, display=True, cmap=None):
         lx = (ll + 3) * fontsize / 100.
         ly = (le + 2) * fontsize / 100.
 
-        lx += (len(exps[k]) + 1) * 0.5
+        lx += (len(exps[k]) + 2) * 0.5
         ly += len(labels[k]) * 0.5
 
         # Initialize figure handle
@@ -601,7 +601,7 @@ def print_probabilities(f, fontsize=12, display=True, cmap=None):
             c = ax.pcolormesh(sorted_probs, cmap=cmap, vmin=0., vmax=100., edgecolors=(0.9, 0.9, 0.9), linewidths=1)
         else:
             c = ax.pcolormesh(sorted_probs, cmap=WOrBr, vmin=0., vmax=100., edgecolors=(0.9, 0.9, 0.9), linewidths=1)
-        fig.colorbar(c)
+        cbar = fig.colorbar(c, label="Probability [%]")
 
         x_ticks = np.array(range(sorted_probs.shape[1])) + 0.5
         y_ticks = np.array(range(sorted_probs.shape[0])) + 0.5
@@ -610,8 +610,12 @@ def print_probabilities(f, fontsize=12, display=True, cmap=None):
         ax.set_xticks(x_ticks)
         ax.set_yticks(y_ticks)
 
-        ax.set_xticklabels(sorted_exps, rotation=60, ha="right", va="center_baseline", rotation_mode="anchor")
+        ax.set_xticklabels(sorted_exps, rotation=90, ha="right", va="center_baseline", rotation_mode="anchor")
         ax.set_yticklabels(sorted_labs)
+        
+        # Set axis labels
+        ax.set_xlabel("Chemical shift [ppm]")
+        ax.set_ylabel("Label")
 
         # Save the figure
         fig.tight_layout()
