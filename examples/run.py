@@ -289,9 +289,9 @@ if nmr_params["assign"]:
         exp_str = ["{:.2f}".format(e) for e in exp_shifts]
     else:
         if asn_params["select_mult"] is not None:
-            p_dir = out_dir + "probs_{}_{}_mult_{}/".format(nmr_params["elem"], nmr_params["nei_elem"], mult)
+            p_dir = out_dir + "probs_{}-{}_mult_{}/".format(nmr_params["elem"], nmr_params["nei_elem"], mult)
         else:
-            p_dir = out_dir + "probs_{}_{}/".format(nmr_params["elem"], nmr_params["nei_elem"])
+            p_dir = out_dir + "probs_{}-{}/".format(nmr_params["elem"], nmr_params["nei_elem"])
         exp_str = ["{:.2f}\\{:.2f}".format(e[0], e[1]) for e in exp_shifts]
     if not os.path.exists(p_dir):
         os.mkdir(p_dir)
