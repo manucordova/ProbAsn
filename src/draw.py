@@ -2,7 +2,7 @@
 ###                                                                                              ###
 ###                     Functions for plotting (distributions, graphs, ...)                      ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 20.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
 
@@ -161,7 +161,7 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
 
 
 
-def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), fontsize=12, n_bins=50, ext=5, f=None, display=False):
+def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), fontsize=12, n_bins=50, ext=5, f=None, display=False, custom=False, thresh=1e-2):
     """
     Plot a 1D chemical shift distribution along with the corresponding histogram of shifts
 
@@ -177,6 +177,8 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
                 - ext           Extension for plotting range (factor for standard deviation of shifts)
                 - f             File to save the figure to
                 - display       Whether or not to display the figure
+                - custom        Whether a custom distribution is set
+                - thresh        Threshold for custom distribution plotting
     """
     
     plt.rcParams.update({"font.size": fontsize})
@@ -185,20 +187,31 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
     # Initialize figure handle
     fig = plt.figure(figsize=fsize)
     ax = fig.add_subplot(1,1,1)
+    
+    # Custom distribution
+    if custom:
+        locs = np.where(y > 1e-2)[0]
+        sm = x[locs[0]]
+        sM = x[locs[-1]]
+        ax.plot([shifts[0]*conv[0]+conv[1], shifts[0]*conv[0]+conv[1]], [0., 1.], "k")
+        
+        # Plot the distribution function
+        ax.plot(x*conv[0]+conv[1], y)
 
-    # Get center and width of the shift distribution
-    mu0 = np.mean(shifts)
-    sig0 = np.std(shifts)
+    else:
+        # Get center and width of the shift distribution
+        mu0 = np.mean(shifts)
+        sig0 = np.std(shifts)
 
-    # Get range for plotting
-    sm = mu0 - ext * sig0
-    sM = mu0 + ext * sig0
+        # Get range for plotting
+        sm = mu0 - ext * sig0
+        sM = mu0 + ext * sig0
 
-    # Plot the data histogram
-    hs, _, _ = ax.hist(shifts*conv[0]+conv[1], bins=n_bins, range=[sM*conv[0]+conv[1], sm*conv[0]+conv[1]])
+        # Plot the data histogram
+        hs, _, _ = ax.hist(shifts*conv[0]+conv[1], bins=n_bins, range=[sM*conv[0]+conv[1], sm*conv[0]+conv[1]])
 
-    # Plot the distribution function
-    ax.plot(x*conv[0]+conv[1], y * np.max(hs))
+        # Plot the distribution function
+        ax.plot(x*conv[0]+conv[1], y * np.max(hs))
 
     # Set axes labels and limits
     ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
@@ -227,7 +240,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
 
 
 def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_elem, fsize=(4.5,3),
-                                  fontsize=12, n_bins=50, levels=[0.1, 0.3, 0.5, 0.7, 0.9], ext=5, f=None, display=False):
+                                  fontsize=12, n_bins=50, levels=[0.1, 0.3, 0.5, 0.7, 0.9], ext=5, f=None, display=False, custom=False, thresh=1e-2):
     """
     Plot a 2D distribution along with the histogram of the corresponding data. Optionally plot Gaussian fitting of the distribution function or of the histogram of the data
 
@@ -247,6 +260,8 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
             - ext           Number of standard deviations to extend the plot range in every direction
             - f             Filename to save the plot to
             - display       Whether to display the plot or not
+            - custom        Whether a custom distribution is set
+            - thresh        Threshold for custom distribution plotting
     """
     
     plt.rcParams.update({"font.size": fontsize})
@@ -258,31 +273,41 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
 
     # Initialize colormap for the histogram
     cm = truncate_colormap(plt.get_cmap("Reds"), 0.3, 0.9)
+    
+    # Custom distribution
+    if custom:
+        locs_y, locs_x = np.where(Z > 1e-2)
+        sm_x = X[0, np.min(locs_x)]
+        sM_x = X[0, np.max(locs_x)]
+        sm_y = Y[np.min(locs_y), 0]
+        sM_y = Y[np.max(locs_y), 0]
+        ax.plot([shifts[0][0]*conv_x[0]+conv_x[1], shifts[0][0]*conv_x[0]+conv_x[1]], [shifts[0][1]*conv_y[0]+conv_y[1], shifts[0][1]*conv_y[0]+conv_y[1]], "ks")
 
-    # Get centers and widths of the shift distribution
-    mu0_x = np.mean(shifts[:,0])
-    mu0_y = np.mean(shifts[:,1])
+    else:
+        # Get centers and widths of the shift distribution
+        mu0_x = np.mean(shifts[:,0])
+        mu0_y = np.mean(shifts[:,1])
 
-    sig0_x = np.std(shifts[:,0])
-    sig0_y = np.std(shifts[:,1])
+        sig0_x = np.std(shifts[:,0])
+        sig0_y = np.std(shifts[:,1])
 
-    # Get ranges for plotting
-    sm_x = mu0_x - ext * sig0_x
-    sM_x = mu0_x + ext * sig0_x
-    sm_y = mu0_y - ext * sig0_y
-    sM_y = mu0_y + ext * sig0_y
+        # Get ranges for plotting
+        sm_x = mu0_x - ext * sig0_x
+        sM_x = mu0_x + ext * sig0_x
+        sm_y = mu0_y - ext * sig0_y
+        sM_y = mu0_y + ext * sig0_y
 
-    # Get shift ranges
-    rx = sM_x - sm_x
-    ry = sM_y - sm_y
+        # Get shift ranges
+        rx = sM_x - sm_x
+        ry = sM_y - sm_y
 
-    # Plot data histogram
-    cs = ax.hist2d(shifts[:,0]*conv_x[0]+conv_x[1], shifts[:,1]*conv_y[0]+conv_y[1],
-                   bins=n_bins, range=[[sM_x*conv_x[0]+conv_x[1], sm_x*conv_x[0]+conv_x[1]],
-                   [sM_y*conv_y[0]+conv_y[1], sm_y*conv_y[0]+conv_y[1]]], cmin=0.5, cmap=cm)
+        # Plot data histogram
+        cs = ax.hist2d(shifts[:,0]*conv_x[0]+conv_x[1], shifts[:,1]*conv_y[0]+conv_y[1],
+                       bins=n_bins, range=[[sM_x*conv_x[0]+conv_x[1], sm_x*conv_x[0]+conv_x[1]],
+                       [sM_y*conv_y[0]+conv_y[1], sm_y*conv_y[0]+conv_y[1]]], cmin=0.5, cmap=cm)
 
-    cbar = fig.colorbar(cs[3], label="Number of instances")
-    cbar.ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", integer=True))
+        cbar = fig.colorbar(cs[3], label="Number of instances")
+        cbar.ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", integer=True))
 
     # Plot distribution function
     cm = truncate_colormap(plt.get_cmap("Blues"), 0.3, 0.9)

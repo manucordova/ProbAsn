@@ -2,7 +2,7 @@
 ###                                                                                              ###
 ###                      Functions for database handling (fetching, ...)                         ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 19.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
 
@@ -171,7 +171,7 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
                         all_crysts.append(crysts)
             
             stop = time.time()
-            print("  Graph {}/{} found. w = {}, {} instances. Time elapsed: {:.2f} s".format(i+1, len(Gs), this_w, len(shifts), stop-start))
+            print("  Graph {}/{} found. w = {}, {} instances. Time elapsed: {:.2f} s".format(i+1, len(Gs), this_w, len(all_shifts[-1]), stop-start))
         
         # If the neighbouring element is not set, extract the 1D shfits
         elif nei_elem is None:
@@ -260,7 +260,7 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
                 all_crysts.append(crysts)
             
             stop = time.time()
-            print("  Graph {}/{} found. w = {}, {} instances. Time elapsed: {:.2f} s".format(i+1, len(Gs), this_w, len(shifts), stop-start))
+            print("  Graph {}/{} found. w = {}, {} instances. Time elapsed: {:.2f} s".format(i+1, len(Gs), this_w, len(all_shifts[-1]), stop-start))
                
         else:
             print("  Graph {}/{} has no neighbouring {}.".format(i+1, len(Gs), nei_elem))

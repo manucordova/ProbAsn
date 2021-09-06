@@ -2,9 +2,14 @@
 ###                                                                                              ###
 ###                                     Utility functions                                        ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 24.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
+
+# Import libraries
+import numpy as np
+
+
 
 def get_default_values(block):
     """
@@ -43,7 +48,10 @@ def get_default_values(block):
         params = {"nei_elem": None,
                   "n_points_distrib": 1001,
                   "assign": True,
-                  "multiplicities": [],
+                  "multiplicities": None,
+                  "custom_distribs": None,
+                  "prevent_cleanup": False,
+                  "custom_inds": None,
                  }
     
     elif block == "ASN":
@@ -180,6 +188,10 @@ def get_array(l):
     
     Output: - vals      Array of values
     """
+    
+    # Identify empty array
+    if l.strip() == "[]":
+        return []
     
     # Initialize array
     vals = []
@@ -381,3 +393,78 @@ def parse_input(file):
     asn_params = parse_block(lines, "ASN")
 
     return sys_params, mol_params, nmr_params, asn_params
+
+
+
+def custom_selection(lists, inds):
+    """
+    Perform a custom selection of graphs to assign
+    
+    Inputs: - lists         Lists to extract the selection from
+            - inds          List of indices to select
+            
+    Output: - out_lists     Output lists
+    """
+    
+    out_lists = []
+    
+    # Loop over each list
+    for lst in lists:
+        this_lst = []
+        # Select the desired elements
+        for i, li in enumerate(lst):
+            if i in inds:
+                this_lst.append(li)
+        
+        out_lists.append(this_lst)
+    
+    return out_lists
+
+
+
+def gen_custom_distribs(distribs):
+    """
+    Generate custom distributions. This is an alternative to the db.fetch_db() function.
+    
+    Inputs:     - distribs      Dictionary of custom distributions
+    
+    Outputs:    - shifts        List of centers of each distribution
+                - errs          List of widths of each distribution
+                - ws            Dummy depth variable
+                - labels        List of labels (keys of the distribs dictionary)
+                - crysts        Dummy list of crystals
+                - inds          Dummy list of indices
+                - hashes        Dummy list of hashes
+    """
+
+    # Initialize output lists
+    labels = []
+    shifts = []
+    errs = []
+    ws = []
+    crysts = []
+    inds = []
+    hashes = []
+    
+    for l in distribs.keys():
+    
+        # Get label
+        labels.append(l)
+        
+        # 1D distributions
+        if len(distribs[l]) == 2:
+            shifts.append(np.array([distribs[l][0]]))
+            errs.append(np.array([distribs[l][1]]))
+        
+        # 2D distributions
+        else:
+            shifts.append(np.array([[distribs[l][0], distribs[l][2]]]))
+            errs.append(np.array([[distribs[l][1], distribs[l][3]]]))
+        
+        # Set dummy values
+        ws.append(0)
+        crysts.append(["CUSTOM"])
+        inds.append(["CUSTOM"])
+        hashes.append("CUSTOM")
+
+    return shifts, errs, ws, labels, crysts, inds, hashes

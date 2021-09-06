@@ -5,7 +5,7 @@
 ###                                                                                              ###
 ###                         Probabilistic assignment of organic crystals                         ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 24.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                      Example run script                                      ###
 ###                                                                                              ###
 ####################################################################################################
@@ -73,91 +73,116 @@ Gs, envs = gr.generate_graphs(atoms, bonds,
                               hetatm=sys_params["hetatm"],
                               hetatm_rep=sys_params["hetatm_rep"])
 
-print("Done!")
+print("Done!\n")
 
 
 
-# Get entries in the database for each graph
-print("Fetching database...")
-
-(all_shifts, all_errs, ws,
- labels, all_crysts, all_inds, hashes) = db.fetch_entries(sys_params["db_root"],
-                                                          nmr_params["elem"],
-                                                          atoms, envs, Gs,
-                                                          sys_params["max_w"],
-                                                          N_min=sys_params["N_min"],
-                                                          nei_elem=nmr_params["nei_elem"],
-                                                          exclude=sys_params["exclude"],
-                                                          verbose=sys_params["verbose"])
-
-print("Done!")
-
-
-
-# Remove duplicate distributions
-print("Cleaning up methyl groups...")
-
-# Remove methyl groups
-if nmr_params["elem"] == "H":
-    (labels, Gs,
-     envs, all_shifts,
-     all_errs, ws,
-     all_crysts, all_inds) = sim.cleanup_methyl_protons(labels, Gs, envs, all_shifts,
-                                                        all_errs, ws, all_crysts,
-                                                        all_inds, atoms, bonds)
-
-elif nmr_params["nei_elem"] == "H":
-    (labels, all_shifts,
-     all_errs, ws,
-     all_crysts, all_inds, hashes) = sim.cleanup_methyls(labels, all_shifts, all_errs, ws,
-                                                         all_crysts, all_inds, hashes, atoms, bonds)
-
-print("Done!")
-
-
-
-print("Saving graphs...")
-
-if nmr_params["nei_elem"] is not None:
-    gr_dir = out_dir + "graphs_{}-{}/".format(nmr_params["elem"], nmr_params["nei_elem"])
+# Custom distributions
+custom = False
+if nmr_params["custom_distribs"] is not None:
+    (all_shifts, all_errs, ws,
+     labels, all_crysts, all_inds, hashes) = ut.gen_custom_distribs(nmr_params["custom_distribs"])
+    custom = True
+    
 else:
-    gr_dir = out_dir + "graphs_{}/".format(nmr_params["elem"])
+    # Get entries in the database for each graph
+    print("Fetching database...")
 
-if not os.path.exists(gr_dir):
-    os.mkdir(gr_dir)
+    (all_shifts, all_errs, ws,
+     labels, all_crysts, all_inds, hashes) = db.fetch_entries(sys_params["db_root"],
+                                                              nmr_params["elem"],
+                                                              atoms, envs, Gs,
+                                                              sys_params["max_w"],
+                                                              N_min=sys_params["N_min"],
+                                                              nei_elem=nmr_params["nei_elem"],
+                                                              exclude=sys_params["exclude"],
+                                                              verbose=sys_params["verbose"])
 
-for l, w in zip(labels, ws):
-    i = int(l.split("-")[0].split(nmr_params["elem"])[1]) - 1
-    gr_file = gr_dir + l + ".pdf"
-    gr.print_graph(Gs[i], w, show=False, save=gr_file)
+    print("Done!\n")
 
-print("Done!")
+    # Select a custom set of nuclei to assign
+    if nmr_params["custom_inds"] is not None:
+        print("Custom selection of graphs...")
+        
+        [all_shifts, all_errs, ws,
+        labels, all_crysts, all_inds, hashes] = ut.custom_selection([all_shifts, all_errs, ws,
+                                                                     labels, all_crysts,
+                                                                     all_inds, hashes],
+                                                                     nmr_params["custom_inds"])
+        print("Done!\n")
 
 
 
-print("Cleaning up equivalent distributions...")
+    if not nmr_params["prevent_cleanup"]:
 
-(labels, all_shifts,
- all_errs, ws,
- all_crysts, all_inds, hashes) = sim.cleanup_equivalent(labels, all_shifts, all_errs,
-                                                        ws, all_crysts, all_inds, hashes)
+        # Remove duplicate distributions
+        print("Cleaning up methyl groups...")
 
-print("Done!")
+        # Remove methyl groups
+        if nmr_params["elem"] == "H":
+            (labels, Gs,
+             envs, all_shifts,
+             all_errs, ws,
+             all_crysts, all_inds) = sim.cleanup_methyl_protons(labels, Gs, envs, all_shifts,
+                                                                all_errs, ws, all_crysts,
+                                                                all_inds, atoms, bonds)
+
+        elif nmr_params["nei_elem"] == "H":
+            (labels, all_shifts,
+             all_errs, ws,
+             all_crysts, all_inds, hashes) = sim.cleanup_methyls(labels, all_shifts, all_errs, ws,
+                                                                 all_crysts, all_inds, hashes, atoms, bonds)
+
+        print("Done!\n")
+
+
+
+    print("Saving graphs...")
+
+    if nmr_params["nei_elem"] is not None:
+        gr_dir = out_dir + "graphs_{}-{}/".format(nmr_params["elem"], nmr_params["nei_elem"])
+    else:
+        gr_dir = out_dir + "graphs_{}/".format(nmr_params["elem"])
+
+    if not os.path.exists(gr_dir):
+        os.mkdir(gr_dir)
+
+    for l, w in zip(labels, ws):
+        i = int(l.split("-")[0].split(nmr_params["elem"])[1]) - 1
+        gr_file = gr_dir + l + ".pdf"
+        gr.print_graph(Gs[i], w, show=False, save=gr_file)
+
+    print("Done!\n")
+
+
+
+    if not nmr_params["prevent_cleanup"]:
+        print("Cleaning up equivalent distributions...")
+
+        (labels, all_shifts,
+         all_errs, ws,
+         all_crysts, all_inds, hashes) = sim.cleanup_equivalent(labels, all_shifts, all_errs,
+                                                                ws, all_crysts, all_inds, hashes)
+
+        print("Done!\n")
 
 
 
 # Select multiplicity (if set)
 if asn_params["select_mult"] is not None:
-    
-    # Set desired multiplicity
-    mult = asn_params["select_mult"]
+
+    # Check that the length of the array of multiplicities matches the length of the array of shifts
+    if len(nmr_params["shifts"]) != len(nmr_params["multiplicities"]):
+        msg = "The length of the array of multiplicities ({})".format(len(nmr_params["multiplicities"]))
+        msg += " does not match the length of the array of shifts ({})".format(len(nmr_params["shifts"]))
+        raise ValueError(msg)
     
     # Get multiplicities
     mults = {}
     for l in labels:
         i = int(l.split("/")[0].split("-")[0].split(nmr_params["elem"])[1]) - 1
         mults[l] = envs[i].split("-").count("H")
-    
+        
     sel_labels = []
     sel_shifts = []
     sel_errs = []
@@ -165,16 +190,37 @@ if asn_params["select_mult"] is not None:
     sel_crysts = []
     sel_inds = []
     sel_hashes = []
+        
+    if type(asn_params["select_mult"]) == list:
+        for mult in asn_params["select_mult"]:
+            for l, sh, er, w, cr, inds, h in zip(labels, all_shifts, all_errs, ws, all_crysts, all_inds, hashes):
+                if mults[l] == mult:
+                    sel_labels.append(l)
+                    sel_shifts.append(sh)
+                    sel_errs.append(er)
+                    sel_ws.append(w)
+                    sel_crysts.append(cr)
+                    sel_inds.append(inds)
+                    sel_hashes.append(h)
+        
+        exp_shifts = [nmr_params["shifts"][i] for i in range(len(nmr_params["shifts"])) if nmr_params["multiplicities"][i] in asn_params["select_mult"]]
     
-    for l, sh, er, w, cr, inds, h in zip(labels, all_shifts, all_errs, ws, all_crysts, all_inds, hashes):
-        if mults[l] == mult:
-            sel_labels.append(l)
-            sel_shifts.append(sh)
-            sel_errs.append(er)
-            sel_ws.append(w)
-            sel_crysts.append(cr)
-            sel_inds.append(inds)
-            sel_hashes.append(h)
+    else:
+        
+        # Set desired multiplicity
+        mult = asn_params["select_mult"]
+        
+        for l, sh, er, w, cr, inds, h in zip(labels, all_shifts, all_errs, ws, all_crysts, all_inds, hashes):
+            if mults[l] == mult:
+                sel_labels.append(l)
+                sel_shifts.append(sh)
+                sel_errs.append(er)
+                sel_ws.append(w)
+                sel_crysts.append(cr)
+                sel_inds.append(inds)
+                sel_hashes.append(h)
+        
+        exp_shifts = [nmr_params["shifts"][i] for i in range(len(nmr_params["shifts"])) if nmr_params["multiplicities"][i] == mult]
             
     labels = sel_labels
     all_shifts = sel_shifts
@@ -183,11 +229,13 @@ if asn_params["select_mult"] is not None:
     all_crysts = sel_crysts
     all_inds = sel_inds
     hashes = sel_hashes
-    
-    exp_shifts = [nmr_params["shifts"][i] for i in range(len(nmr_params["shifts"])) if nmr_params["multiplicities"][i] == mult]
 
 else:
     exp_shifts = nmr_params["shifts"]
+
+# Check that there are not too many shifts to assign
+if len(exp_shifts) > len(labels) + sum([l.count("/") for l in labels]):
+    raise ValueError("Too many shifts to assign! (maximum: {})".format(len(labels) + sum([l.count("/") for l in labels])))
 
 
 
@@ -214,7 +262,7 @@ if nmr_params["nei_elem"] is None:
         
         for l, y, shifts, w in zip(labels, ys, all_shifts, ws):
             file = dist_dir + l.replace("/", "_") + ".pdf"
-            dr.draw_1D_distribution_and_hist(x, y, shifts, conv, w, nmr_params["elem"], f=file)
+            dr.draw_1D_distribution_and_hist(x, y, shifts, conv, w, nmr_params["elem"], f=file, custom=custom)
     
     if asn_params["select_mult"] is not None:
         file = out_dir + "distribs_{}_mult_{}.pdf".format(nmr_params["elem"], mult)
@@ -255,7 +303,7 @@ else:
         for l, Z, shifts, w in zip(labels, Zs, all_shifts, ws):
             file = dist_dir + l.replace("/", "_") + ".pdf"
             dr.draw_2D_distribution_and_hist(X, Y, Z, shifts, conv, nei_conv, w,
-                                             nmr_params["elem"], nmr_params["nei_elem"], f=file)
+                                             nmr_params["elem"], nmr_params["nei_elem"], f=file, custom=custom)
     
     if asn_params["select_mult"] is not None:
         file = out_dir + "distribs_{}-{}_mult_{}.pdf".format(nmr_params["elem"], nmr_params["nei_elem"], mult)

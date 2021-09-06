@@ -2,7 +2,7 @@
 ###                                                                                              ###
 ###                          Functions for probabilistic assignment                              ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 24.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
 
@@ -111,7 +111,7 @@ def get_possible_assignments(scores, labels, exp, thresh=100., thresh_increase="
                 thresh = increase_threshold(thresh, thresh_increase)
                 break
 
-    print("  Scores cleaned up, threshold set to {}".format(thresh))
+    print("  Scores cleaned up, threshold set to {}\n".format(thresh))
 
     # When assigning 2D distributions, if two central or neighbouring atoms in different graphs are the same,
     #   then we merge all possible assignments
@@ -278,7 +278,7 @@ def generate_global_asns(possible_asns, scores, n_dist, n_exp, ls, es, equiv,
 
     # If max_asn is set, get the max_asn highest scores
     if max_asn is not None and rank >= r_max_asn:
-        score_inds = score_inds[:Nmax]
+        score_inds = score_inds[:max_asn]
 
     asn_num = 0
     for i in score_inds:
@@ -290,9 +290,9 @@ def generate_global_asns(possible_asns, scores, n_dist, n_exp, ls, es, equiv,
                 space += " "
             t_stop = time.time()
             if t_start is not None:
-                print(space + "Rank {}, {}/{}, {} valid assignments so far. Time elapsed: {:.2f} s".format(rank, asn_num, len(score_inds), len(global_asns), t_stop - t_start))
+                print(space + "Assigning nucleus {}, {}/{}, {} valid assignments generated until now. Time elapsed: {:.2f} s".format(rank, asn_num, len(score_inds), len(global_asns), t_stop - t_start))
             else:
-                print(space + "Rank {}, {}/{}, {} valid assignments so far".format(rank, asn_num, len(score_inds), len(global_asns)))
+                print(space + "Assigning nucleus {}, {}/{}, {} valid assignments generated until now".format(rank, asn_num, len(score_inds), len(global_asns)))
 
         # Try assigning distribution "rank" to experiment at index i
         this_asn = already_linked.copy()
@@ -385,8 +385,11 @@ def get_probabilistic_assignment(scores, possible_assignments, exp, labels,
 
             # Extract the label indices
             these_inds = []
-            for l2 in li.split("-"):
-                these_inds.append(int(re.findall("\d+", l2)[0]))
+            for i, l2 in enumerate(li.split("-")):
+                try:
+                    these_inds.append(int(re.findall("\d+", l2)[0]))
+                except:
+                    these_inds.append(i)
             label_inds.append(these_inds)
         
         # Set the equivalent nuclei
@@ -421,17 +424,24 @@ def get_probabilistic_assignment(scores, possible_assignments, exp, labels,
             for l in [all_labels[i] for i in dist_pool]:
                 tmp_pp += "{}, ".format(l)
             tmp_pp = tmp_pp[:-2]
-            if verbose:
-                print(tmp_pp)
+            print(tmp_pp)
 
             these_asns = []
             for i in dist_pool:
                 these_asns.append(all_asns[i])
 
+            print("Corresponding shifts: {}".format(", ".join([str(exp[i]) for i in shift_pool])))
+            print("Assigning {} nuclei to {} shifts".format(len(dist_pool), len(shift_pool)))
+            
             if verbose:
-                print("Corresponding shifts: {}".format(", ".join([str(exp[i]) for i in shift_pool])))
-                print("Mapping {} nuclei on {} shifts".format(len(dist_pool), len(shift_pool)))
-                print("Generating global assignments...")
+                pp = ""
+                for i in dist_pool:
+                    pp += "  Possible assignments for {}: ".format(all_labels[i])
+                    pp += ", ".join([str(exp[j]) for j in all_asns[i]])
+                    pp += "\n"
+                print(pp)
+            
+            print("Generating global assignments...")
 
             start = time.time()
 
@@ -549,7 +559,7 @@ def get_probabilistic_assignment(scores, possible_assignments, exp, labels,
             cleaned_scores = [np.prod(all_scores[dist_pool, a]) for a in cleaned_asns]
             cleaned_scores /= np.sum(cleaned_scores)
             stop = time.time()
-            print("Done. Time elapsed: {:.4f} s".format(stop - start))
+            print("Done. Time elapsed: {:.4f} s\n".format(stop - start))
             
             # Gather equivalent nuclei
             these_equiv = []

@@ -75,8 +75,17 @@ The code is freely available from https://github.com/manucordova/ProbAsn
 - assign: Whether or not to assign experimental shifts. Setting this to False only outputs the statistical distributions of shifts for the atoms in the molecule
   - Default: True
 - shifts: List of experimental shifts to assign. The number of shifts should be lower or equal to the number of nuclei of the desired element in the molecule. For simulated 2D spectra, each shift should be entered as an array of the shifts in both dimensions
+  - Default: []
 - multiplicities: For carbon shifts, multiplicity (number of attached protons) of each experimental shift
   - Default: []
+- custom_distribs: If set, generates custom distributions to assign. The distributions should be set as a dictionary where keys are labels of the distributions and values are arrays containing the center and width of each distribution. For 2D distributions, the values are arrays of four numbers, with the two first numbers being the center and width of the distribution for the central element and the two last numbrers being the center and width of the distribution for the neighbouring element. All custom distributions are considered as single Gaussian functions (one-dimensional or two-dimensional).
+  - Default: None
+  - Example (1D): {"a": [30.0, 1.0], "b": [40.5, 0.5]}
+  - Example (2D): {"a": [30.0, 1.0, 100.0, 5.0], "b": [40.5, 0.5, 120.0, 10.0]}
+- prevent_cleanup: Prevent cleaning up distributions. This include cleaning up methyl groups and gathering topologically equivalent nuclei.
+  - Default: False
+- custom_inds: If set, only the subset of graphs indicated (as an array) will be considered. This selection is performed before cleaning up distributions.
+  - Default: None
 
 ### $ASN
 
@@ -102,3 +111,4 @@ The code is freely available from https://github.com/manucordova/ProbAsn
   - Default: 4
 - pool_inds: Indices of the pools to assign. This is useful to use different assignment parameters on different pools
   - Default: None (assign all pools)
+

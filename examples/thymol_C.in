@@ -20,7 +20,6 @@ $SYS
   exclude = none
   save_individual_distribs = true
   verbose = true
-	
 $END
 
 # Molecule parameters

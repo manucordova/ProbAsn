@@ -2,7 +2,7 @@
 ###                                                                                              ###
 ###                             Functions for simulating spectra                                 ###
 ###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 24.08.2021                                     ###
+###                                Last modified: 03.09.2021                                     ###
 ###                                                                                              ###
 ####################################################################################################
 
@@ -456,7 +456,7 @@ def make_1D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_s
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
         print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
         ys.append(make_1D_distribution(x, sh, er, norm=norm, max_shifts=max_shifts, seed=seed))
-        print("  Distribution constructed!")
+        print("  Distribution constructed!\n")
 
     return x, ys
     
@@ -540,7 +540,7 @@ def make_2D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_s
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
         print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
         Zs.append(make_2D_distribution(x, y, sh, er, norm=norm, max_shifts=max_shifts, seed=seed))
-        print("  Distribution constructed!")
+        print("  Distribution constructed!\n")
     
     return X, Y, Zs
 
@@ -652,7 +652,7 @@ def compute_scores_1D(exp, shifts, errs, conv, max_shifts=None, seed=None, acc=N
         if np.sum(y) < 1e-6:
             print("    WARNING: Distribution {} does not seem to match any experimental shift".format(i+1))
         scores[i] = y / np.sum(y)
-        print("  Done!")
+        print("  Done!\n")
     
     return scores
 
@@ -750,6 +750,6 @@ def compute_scores_2D(exp, shifts, errs, conv_x, conv_y, max_shifts=None, seed=N
         if np.sum(these_scores) < 1e-6:
             print("    WARNING: Distribution {} does not seem to match any experimental shift".format(i+1))
         scores[i] = these_scores / np.sum(these_scores)
-        print("  Done!")
+        print("  Done!\n")
     
     return scores
