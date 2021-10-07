@@ -19,7 +19,7 @@ Alternatively, a Python environment containing all the required libraries can be
 
 ## Database
 
-The database is available from: https://drive.google.com/drive/folders/1vqzamV5kXTM8ggIeD3HSXQ7efdqJjY0a?usp=sharing
+The database is available from: https://doi.org/10.24435/materialscloud:vp-ft
 
 Place the downloaded directories in the "db" directory.
 
