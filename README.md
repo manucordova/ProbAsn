@@ -25,7 +25,7 @@ To download the database, you can enter Python in the "examples" directory, impo
 >
 >> import ProbAsn
 >>
->> Probasn.utils.download_database()
+>> ProbAsn.utils.download_database()
 >>
 >> quit()
 

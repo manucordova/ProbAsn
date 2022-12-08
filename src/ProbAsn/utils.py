@@ -9,16 +9,18 @@
 # Import libraries
 import numpy as np
 import gdown
+import zipfile
 
 
 
-def download_database(url=None, dest="../db/ProbAsn.db"):
+def download_database(url=None, output="../db/ProbAsn.db.zip"):
     """
     Download the database
     """
 
-    gdown.download(url, dest, quiet=False)
-
+    gdown.download(url, output, quiet=False)
+    with zipfile.ZipFile(output,"r") as zip_ref:
+        zip_ref.extractall(output.replace(".zip", ""))
     return
 
 
