@@ -8,6 +8,18 @@
 
 # Import libraries
 import numpy as np
+import gdown
+
+
+
+def download_database(url=None, dest="../db/ProbAsn.db"):
+    """
+    Download the database
+    """
+
+    gdown.download(url, dest, quiet=False)
+
+    return
 
 
 
@@ -20,7 +32,7 @@ def get_default_values(block):
     """
 
     if block == "SYS":
-        params = {"db_root": "../db/",
+        params = {"db_file": "../db/ProbAsn.db",
                   "out_root": "../output/",
                   "max_w": 6,
                   "N_min": 10,
@@ -170,7 +182,7 @@ def get_dict(l):
     for li in ls:
         tmp = clean_split(li, ":")
         if len(tmp) != 2:
-            raise valueError("Erroneous dictionary part: {}".format(li))
+            raise ValueError("Erroneous dictionary part: {}".format(li))
         key = get_value(tmp[0].strip())
         val = get_value(tmp[1])
         

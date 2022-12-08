@@ -7,21 +7,25 @@ This is the code for the paper "Bayesian Probabilistic Assignment of Chemical Sh
 
 ## Python
 
-You first need to install Python and the libraries required to run the software:
+You first need to install the Python package using pip. This will install all the required dependencies.
 
-- Python 3
-- numpy (>=1.20.3)
-- ase (>=3.19.0)
-- openbabel (>=3.1.0)
-- networkx (>=2.5)
+> pip install .
 
 Alternatively, a Python environment containing all the required libraries can be installed by running the "install_env.sh" script (requires anaconda to be installed: https://www.anaconda.com)
 
 ## Database
 
-The database is available from: https://doi.org/10.24435/materialscloud:vp-ft
+The database is available from: [TBA]
 
-Place the downloaded directories in the "db" directory.
+To download the database, you can enter Python in the "examples" directory, import the ProbAsn package and use the "download_database()" function:
+
+> cd examples
+> python
+>> import ProbAsn
+>> Probasn.utils.download_database()
+>> quit()
+
+Alternatively, download the file and place it in the "db" directory.
 
 Then, you should be good to go!
 

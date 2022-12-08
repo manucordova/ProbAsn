@@ -132,10 +132,7 @@ dmypy.json
 .DS_Store
 
 # Database directory
-db/H*
-db/C*
-db/N*
-db/O*
+db/*.db
 
 # Working directories
 working_dir/

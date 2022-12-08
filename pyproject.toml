@@ -1,0 +1,19 @@
+[project]
+name = "ProbAsn"
+description = "Bayesian probabilistic assignment of chemical shifts in organic solids"
+version = "1.0.0"
+authors = [
+    { name = "Manuel Cordova", email = "manuel.cordova@epfl.ch" }
+]
+
+dependencies = [
+    "numpy",
+    "ase",
+    "setuptools",
+    "networkx>=2.7",
+    "matplotlib",
+    "gdown",
+]
+
+[build-system]
+requires = ["numpy", "ase", "setuptools", "networkx", "matplotlib", "gdown", "wheel"]

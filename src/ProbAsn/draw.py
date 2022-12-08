@@ -14,7 +14,7 @@ import matplotlib.colors as clrs
 from matplotlib.ticker import MaxNLocator
 
 # Import local libraries
-import sim
+from . import sim
 
 
 

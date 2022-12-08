@@ -9,20 +9,20 @@
 # Import libraries
 import numpy as np
 import os
-import subprocess as sbp
+import sqlite3 as sl
 import time
 
 # Import local libraries
-import graph as gr
+from . import graph as gr
 
 
 
-def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None, exclude=None, verbose=False):
+def fetch_entries(db_file, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None, exclude=None, verbose=False):
     """
     Find the database entries corresponding to each graph, with a minimum number of instances.
         Also retrieve the crystal identifier and index of the atom associated with each database entry.
     
-    Inputs:     - db_root       Root directory of the database
+    Inputs:     - db_file       Database file
                 - elem          Element of the central nodes of the graphs
                 - elems         List of atoms in the molecule
                 - envs          Environment of each graph (first coordination shell)
@@ -52,8 +52,11 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
     all_inds = []
     hashes = []
     
-    # Get the directory
-    db_dir = db_root + elem + "/"
+    # Check if database directory exists
+    if not os.path.exists(db_file):
+        raise ValueError(f"Database does not exist: {db_file}")
+    # Initialize connection to the database
+    con = sl.connect(db_file)
     
     # Loop over each graph
     for i, (G, env) in enumerate(zip(Gs, envs)):
@@ -65,18 +68,9 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
         if nei_elem is not None:
             nei_elems = env.split("-")
             num_nei = nei_elems.count(nei_elem)
-            # Get the directory
-            db_dir = db_root + elem + "-" + nei_elem + "/"
-        
-        # Check if database directory exists
-        if not os.path.exists(db_dir):
-            raise ValueError("Directory does not exist: {}".format(db_dir))
-        
+
         # If there are neighbours that correspond to the element, extract the 2D shifts
         if num_nei > 0:
-            
-            if not os.path.exists(db_dir + env + ".csv"):
-                raise ValueError("File does not exist: {}".format(db_dir + env + ".csv"))
             
             # Loop over all neighbours
             for j in range(1, len(nei_elems)+1):
@@ -86,11 +80,14 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
                     this_w = max_w
 
                     # Generate arborescence (array of hashes)
+                    where = [f"env = '{env}'"]
                     arb = []
                     for w in range(2, max_w+1):
                         cut_G = gr.cut_graph(G, w)
                         cut_G.nodes[j]["elem"] = "Z"
                         arb.append(gr.generate_hash(cut_G))
+                        where.append(f"G{w} = '{arb[-1]}'")
+                    where.append("")
                     
                     # If the arborescence was already found before, get the corresponding shifts directly
                     if ",".join(arb) in hashes:
@@ -113,55 +110,46 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
                         
                         hashes.append(",".join(arb))
                     
-                        # Initialize array of shifts and errors
+                        # Get the entries of the corresponding graph
+                        while len(where) > 0:
+                            where.pop(-1)
+                            # If we run out of options, just return matching environments
+                            if len(where) == 0:
+                                with con:
+                                    data = con.execute(
+                                        f"""
+                                        SELECT crystal, ind, shift, err, nei_ind, nei_shift, nei_err FROM {elem}_{nei_elem};
+                                        """
+                                    ).fetchall()
+                                break
+                            
+                            with con:
+                                data = con.execute(
+                                    f"""
+                                    SELECT crystal, ind, shift, err, nei_ind, nei_shift, nei_err FROM {elem}_{nei_elem} WHERE {' AND '.join(where)};
+                                    """
+                                ).fetchall()
+                            
+                            if len(data) >= N_min:
+                                break
+
+                            if verbose:
+                                print("    w = {}: {} instances are not enough, reducing graph depth...".format(this_w, len(data)))
+
+                            this_w -= 1
+
+                        # Set arrays of shifts, errors, crystal structures and atomic indices
                         shifts = []
                         errs = []
-                        inds = []
                         crysts = []
-
-                        # Get the entries of the corresponding graph
-                        p = sbp.Popen(["grep", ",".join(arb), db_dir + env + ".csv"], stdout=sbp.PIPE)
-                        out, err = p.communicate()
-                        out = out.decode("UTF-8")
-
-                        for l in out.split("\n"):
-                            if len(l) > 0:
-                                tmp = l.split(",")
-                                if (exclude is None or tmp[0] not in exclude) and tmp[0] != "crystal":
-                                    crysts.append(tmp[0])
-                                    inds.append([int(tmp[1]), int(tmp[4])])
-                                    shifts.append([float(tmp[2]), float(tmp[5])])
-                                    errs.append([float(tmp[3]), float(tmp[6])])
-
-                        # If there is not enough entries, reduce the depth and try again
-                        while len(shifts) < N_min:
-                            
-                            if verbose:
-                                print("    w = {}: {} instances are not enough, reducing graph depth...".format(this_w, len(shifts)))
-
-                            shifts = []
-                            errs = []
-                            inds = []
-                            crysts = []
-
-                            # Update the depth and the corresponding arborescence
-                            this_w -= 1
-                            arb = arb[:-1]
-
-                            # Get the entries of the corresponding graph
-                            p = sbp.Popen(["grep", ",".join(arb), db_dir + env + ".csv"], stdout=sbp.PIPE)
-                            out, err = p.communicate()
-                            out = out.decode("UTF-8")
-
-                            for l in out.split("\n"):
-                                if len(l) > 0:
-                                    tmp = l.split(",")
-                                    if (exclude is None or tmp[0] not in exclude) and tmp[0] != "crystal":
-                                        shifts.append([float(tmp[2]), float(tmp[5])])
-                                        errs.append([float(tmp[3]), float(tmp[6])])
-                                        inds.append([int(tmp[1]), int(tmp[4])])
-                                        crysts.append(tmp[0])
-
+                        inds = []
+                        for cryst, ind, shift, err, nei_ind, nei_shift, nei_err in data:
+                            if exclude is None or cryst not in exclude:
+                                crysts.append(cryst)
+                                inds.append([ind, nei_ind])
+                                shifts.append([shift, nei_shift])
+                                errs.append([err, nei_err])
+                        
                         # Append the array of shifts and errors for this distribution
                         all_shifts.append(np.array(shifts))
                         all_errs.append(np.array(errs))
@@ -178,10 +166,13 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
             this_w = max_w
         
             # Generate arborescence (array of hashes)
+            where = [f"env = '{env}'"]
             arb = []
             for w in range(2, max_w+1):
                 cut_G = gr.cut_graph(G, w)
                 arb.append(gr.generate_hash(cut_G))
+                where.append(f"G{w} = '{arb[-1]}'")
+            where.append("")
             
             # If the arborescence was already found, reuse the previously extracted shifts to save time
             if ",".join(arb) in hashes:
@@ -202,55 +193,46 @@ def fetch_entries(db_root, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
             else:
                 hashes.append(",".join(arb))
 
-                # Initialize array of shifts, errors, crystal structures and atomic indices
+                # Get the entries of the corresponding graph
+                while len(where) > 0:
+                    where.pop(-1)
+                    # If we run out of options, just return matching environments
+                    if len(where) == 0:
+                        with con:
+                            data = con.execute(
+                                f"""
+                                SELECT crystal, ind, shift, err FROM {elem};
+                                """
+                            ).fetchall()
+                        break
+                    
+                    with con:
+                        data = con.execute(
+                            f"""
+                            SELECT crystal, ind, shift, err FROM {elem} WHERE {' AND '.join(where)};
+                            """
+                        ).fetchall()
+                    
+                    if len(data) >= N_min:
+                        break
+
+                    if verbose:
+                        print("    w = {}: {} instances are not enough, reducing graph depth...".format(this_w, len(data)))
+
+                    this_w -= 1
+
+                # Set arrays of shifts, errors, crystal structures and atomic indices
                 shifts = []
                 errs = []
                 crysts = []
                 inds = []
-
-                # Get the entries of the corresponding graph
-                p = sbp.Popen(["grep", ",".join(arb), db_dir + env + ".csv"], stdout=sbp.PIPE)
-                out, err = p.communicate()
-                out = out.decode("UTF-8")
-
-                for l in out.split("\n"):
-                    if len(l) > 0:
-                        tmp = l.split(",")
-                        if (exclude is None or tmp[0] not in exclude) and tmp[0] != "crystal":
-                            crysts.append(tmp[0])
-                            inds.append(int(tmp[1]))
-                            shifts.append(float(tmp[2]))
-                            errs.append(float(tmp[3]))
-
-                # If there is not enough entries, reduce the depth and try again
-                while len(shifts) < N_min:
-                            
-                    if verbose:
-                        print("    w = {}: {} instances are not enough, reducing graph depth...".format(this_w, len(shifts)))
-
-                    shifts = []
-                    errs = []
-                    inds = []
-                    crysts = []
-
-                    # Reduce the depth and update the arborescence
-                    this_w -= 1
-                    arb = arb[:-1]
-
-                    # Get the entries of the corresponding graph
-                    p = sbp.Popen(["grep", ",".join(arb), db_dir + env + ".csv"], stdout=sbp.PIPE)
-                    out, err = p.communicate()
-                    out = out.decode("UTF-8")
-
-                    for l in out.split("\n"):
-                        if len(l) > 0:
-                            tmp = l.split(",")
-                            if (exclude is  None or tmp[0] not in exclude) and tmp[0] != "crystal":
-                                crysts.append(tmp[0])
-                                inds.append(int(tmp[1]))
-                                shifts.append(float(tmp[2]))
-                                errs.append(float(tmp[3]))
-
+                for cryst, ind, shift, err in data:
+                    if exclude is None or cryst not in exclude:
+                        crysts.append(cryst)
+                        inds.append(ind)
+                        shifts.append(shift)
+                        errs.append(err)
+          
                 # Append the array of shifts and error for this distribution
                 all_shifts.append(np.array(shifts))
                 all_errs.append(np.array(errs))
@@ -498,6 +480,6 @@ def fetch_entries_from_hashes(db_root, elem, envs, Hs, max_w, N_min=10, nei_elem
             print("  Graph {}/{} found. w = {}, {} instances. Time elapsed: {:.2f} s".format(i+1, len(Hs), this_w, len(shifts), stop-start))
 
         else:
-            print("  Graph {}/{} has no neighbouring {}.".format(i+1, len(Gs), nei_elem))
+            print("  Graph {}/{} has no neighbouring {}.".format(i+1, len(Hs), nei_elem))
                                                                                                
     return all_shifts, all_errs, ws, labels, all_crysts, all_inds

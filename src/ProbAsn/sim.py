@@ -153,8 +153,8 @@ def cleanup_methyls(labels, shifts, errs, ws, crysts, inds, hashes, atoms, bonds
     for l, sh, er, w, cryst, ind, h in zip(labels, shifts, errs, ws, crysts, inds, hashes):
     
         # Get the index of the central node
-        ind = int(l.split("-")[0].split(elem)[1]) - 1
-        i = [k for k, e in enumerate(atoms) if e == elem][ind]
+        i0 = int(l.split("-")[0].split(elem)[1]) - 1
+        i = [k for k, e in enumerate(atoms) if e == elem][i0]
     
         # Check if there are at least three protons linked to the atom
         nH = [atoms[k] for k in bonds[i]].count("H")

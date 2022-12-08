@@ -10,7 +10,7 @@
 
 # System parameters
 $SYS
-  db_root = "../db/"
+  db_file = "../db/ProbAsn.db"
   out_root = "../output/"
   max_w = 6
   N_min = 10
