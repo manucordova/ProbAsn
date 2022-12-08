@@ -20,9 +20,13 @@ The database is available from: [TBA]
 To download the database, you can enter Python in the "examples" directory, import the ProbAsn package and use the "download_database()" function:
 
 > cd examples
+
 > python
+
 >> import ProbAsn
+
 >> Probasn.utils.download_database()
+
 >> quit()
 
 Alternatively, download the file and place it in the "db" directory.

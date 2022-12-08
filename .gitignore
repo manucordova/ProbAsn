@@ -133,6 +133,7 @@ dmypy.json
 
 # Database directory
 db/*.db
+db/*.zip
 
 # Working directories
 working_dir/
