@@ -221,7 +221,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
     ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", integer=True))
 
     # Write the depth of the graph and the number of instances
-    ax.text(0.01, 0.98, "w = {}, N = {}".format(w, len(shifts)), va="top", transform=ax.transAxes)
+    ax.text(0.01, 0.98, f"w = {w}, N = {len(shifts)}\nµ= {mu0*conv[0]+conv[1]:.2f}\n$\sigma$ = {sig0*np.abs(conv[0]):.2f}", va="top", transform=ax.transAxes)
 
     fig.tight_layout()
 
@@ -321,7 +321,7 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
     ax.set_ylim(sm_y*conv_y[0]+conv_y[1], sM_y*conv_y[0]+conv_y[1])
 
     # Write the depth of the graph and the number of instances
-    ax.text(0.01, 0.98, "w = {}, N = {}".format(w, len(shifts)), va="top", transform=ax.transAxes)
+    ax.text(0.01, 0.98, f"w = {w}, N = {len(shifts)}\n$\mu_x$ = {mu0_x*conv_x[0]+conv_x[1]:.2f}\n$\sigma_x$ = {sig0_x*np.abs(conv_x[0]):.2f}\n$\mu_y$ = {mu0_y*conv_y[0]+conv_y[1]:.2f}\n$\sigma_y$ = {sig0_y*np.abs(conv_y[0]):.2f}", va="top", transform=ax.transAxes)
 
     fig.tight_layout()
 
