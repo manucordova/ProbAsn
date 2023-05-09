@@ -146,7 +146,7 @@ def get_bonds(mol):
         for l in lines[n_atoms + 4:]:
 
             # Detect end of file
-            if "END" in l or len(l.split()) not in [6, 7]:
+            if "END" in l or "CHG" in l or len(l.split()) not in [6, 7]:
                 break
 
             bond = [int(l[:3])-1, int(l[3:6])-1]

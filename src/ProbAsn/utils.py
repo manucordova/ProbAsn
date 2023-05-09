@@ -34,7 +34,7 @@ def get_default_values(block):
     """
 
     if block == "SYS":
-        params = {"db_file": "../db/ProbAsn.db",
+        params = {"db_dir": "../db/",
                   "out_root": "../output/",
                   "max_w": 6,
                   "N_min": 10,
@@ -42,7 +42,7 @@ def get_default_values(block):
                   "conv_C": [-1., 170.04],
                   "conv_N": [-1., 188.56],
                   "conv_O": [-1., 254.62],
-                  "elems": ["H", "C", "N", "O", "S"],
+                  "elems": ["H", "C", "N", "O", "S", "F", "P", "Cl", "Na", "Ca", "Mg", "K"],
                   "hetatm": "error",
                   "hetatm_rep": None,
                   "exclude": None,

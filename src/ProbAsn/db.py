@@ -17,12 +17,12 @@ from . import graph as gr
 
 
 
-def fetch_entries(db_file, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None, exclude=None, verbose=False):
+def fetch_entries(db_dir, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None, exclude=None, verbose=False):
     """
     Find the database entries corresponding to each graph, with a minimum number of instances.
         Also retrieve the crystal identifier and index of the atom associated with each database entry.
     
-    Inputs:     - db_file       Database file
+    Inputs:     - db_dir        Database directory
                 - elem          Element of the central nodes of the graphs
                 - elems         List of atoms in the molecule
                 - envs          Environment of each graph (first coordination shell)
@@ -52,11 +52,10 @@ def fetch_entries(db_file, elem, atoms, envs, Gs, max_w, N_min=10, nei_elem=None
     all_inds = []
     hashes = []
     
-    # Check if database directory exists
-    if not os.path.exists(db_file):
-        raise ValueError(f"Database does not exist: {db_file}")
-    # Initialize connection to the database
-    con = sl.connect(db_file)
+    if nei_elem is None:
+        con = sl.connect(f"{db_dir}ProbAsn_{elem}.db")
+    else:
+        con = sl.connect(f"{db_dir}ProbAsn_{elem}-{nei_elem}.db")
     
     # Loop over each graph
     for i, (G, env) in enumerate(zip(Gs, envs)):

@@ -235,7 +235,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
 
     plt.close()
 
-    return
+    return f"w = {w}, N = {len(shifts)}\nmu = {mu0*conv[0]+conv[1]:.2f}, sigma = {sig0*np.abs(conv[0]):.2f}"
 
 
 
