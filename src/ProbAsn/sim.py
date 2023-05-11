@@ -18,7 +18,7 @@ em = nx.algorithms.isomorphism.categorical_edge_match("w", -1)
 
 
 
-def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, atoms, bonds):
+def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, hashes, atoms, bonds):
     """
     Gather methyl proton shifts into only one per methyl group
     
@@ -51,12 +51,13 @@ def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, ato
     new_ws = []
     new_crysts = []
     new_inds = []
+    new_hashes = []
     
     # Array to store already identified methyl groups
     methyls = []
     
     # Loop over all graphs
-    for l, G, env, sh, er, w, cryst, ind in zip(labels, Gs, envs, shifts, errs, ws, crysts, inds):
+    for l, G, env, sh, er, w, cryst, ind, h in zip(labels, Gs, envs, shifts, errs, ws, crysts, inds, hashes):
         
         # Get the index of the central node
         i = G.nodes[0]["ind"]
@@ -80,6 +81,7 @@ def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, ato
                     new_ws.append(w)
                     new_crysts.append(cryst)
                     new_inds.append(ind)
+                    new_hashes.append(h)
             
             # If this is not a methyl proton, add it
             else:
@@ -91,6 +93,7 @@ def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, ato
                 new_ws.append(w)
                 new_crysts.append(cryst)
                 new_inds.append(ind)
+                new_hashes.append(h)
         
         # If the proton is bonded to more than one atom, add it
         else:
@@ -102,8 +105,9 @@ def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, ato
             new_ws.append(w)
             new_crysts.append(cryst)
             new_inds.append(ind)
+            new_hashes.append(h)
     
-    return new_labels, new_Gs, new_envs, new_shifts, new_errs, new_ws, new_crysts, new_inds
+    return new_labels, new_Gs, new_envs, new_shifts, new_errs, new_ws, new_crysts, new_inds, new_hashes
 
 
 
