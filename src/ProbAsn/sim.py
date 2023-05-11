@@ -242,12 +242,13 @@ def cleanup_equivalent(labels, shifts, errs, ws, crysts, inds, hashes):
 
 
 
-def get_lims_1D(all_shifts, all_errs, extend=0.1, dx="rms"):
+def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
     """
     Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor
 
     Inputs: - all_shifts    List of shifts in the distributions
             - all_errs      List of predicted errors in the distributions
+            - conv          Shielding to shift conversion parameters
             - extend        How much to extend the range (fraction of the original range, applied to both sides)
             - dx            How the error is incorporated to the minimum/maximum shift:
                                 "sel": use the error of the minimum and maximum peaks
@@ -301,16 +302,18 @@ def get_lims_1D(all_shifts, all_errs, extend=0.1, dx="rms"):
     lx[0] -= extend * r
     lx[1] += extend * r
 
-    return lx
+    return np.sort(lx * conv[0] + conv[1])
 
 
 
-def get_lims_2D(all_shifts, all_errs, extend=0.1, dx="rms"):
+def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx="rms"):
     """
     Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor
 
     Inputs:     - all_shifts    List of all shifts in the distributions
                 - all_errs      List of predicted errors in the distributions
+                - conv_x        Shielding to shift conversion parameters in the x axis
+                - conv_y        Shielding to shift conversion parameters in the y axis
                 - extend        How much to extend the range (fraction of the original range, applied to both sides)
                 - dx            How the error is incorporated to the minimum/maximum shift:
                                     "sel": use the error of the minimum and maximum peaks
@@ -383,7 +386,12 @@ def get_lims_2D(all_shifts, all_errs, extend=0.1, dx="rms"):
     ly[0] -= extend * ry
     ly[1] += extend * ry
 
-    return np.array([lx, ly])
+    if dqsq:
+        lims = np.array([np.sort(lx*conv_x[0]+conv_x[1]), np.sort(ly*conv_y[0]+conv_y[1])+np.sort(lx*conv_x[0]+conv_x[1])])
+    else:
+        lims = np.array([np.sort(lx*conv_x[0]+conv_x[1]), np.sort(ly*conv_y[0]+conv_y[1])])
+
+    return lims
 
 
 
@@ -434,7 +442,7 @@ def make_1D_distribution(x, shifts, errs, norm=None, max_shifts=None, seed=None)
 
 
 
-def make_1D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_shifts=None, seed=None):
+def make_1D_distributions(lims, n_points, all_shifts, all_errs, conv, norm=None, max_shifts=None, seed=None):
     """
     Generate 1D distributions of chemical shifts from arrays of shifts and errors of each distribution
     
@@ -442,6 +450,7 @@ def make_1D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_s
                 - n_points      Number of points in the distributions
                 - all_shifts    Array of shifts for each distribution
                 - all_errs      Array of predicted error for each distribution
+                - conv          Shielding to shift conversion
                 - norm          Distribution normalization to apply
                                     None: no normalization
                                     "max": top of each distribution set to 1
@@ -459,7 +468,7 @@ def make_1D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_s
     ys = []
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
         print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
-        ys.append(make_1D_distribution(x, sh, er, norm=norm, max_shifts=max_shifts, seed=seed))
+        ys.append(make_1D_distribution(x, sh*conv[0]+conv[1], er*np.abs(conv[0]), norm=norm, max_shifts=max_shifts, seed=seed))
         print("  Distribution constructed!\n")
 
 
@@ -468,7 +477,7 @@ def make_1D_distributions(lims, n_points, all_shifts, all_errs, norm=None, max_s
     
     
     
-def make_2D_distribution(x, y, shifts, errs, dqsq=False, norm=None, max_shifts=None, seed=None):
+def make_2D_distribution(x, y, shifts, errs, norm=None, max_shifts=None, seed=None):
     """
     
     Inputs: - x             Array of x-values to draw the Gaussians on
@@ -498,10 +507,7 @@ def make_2D_distribution(x, y, shifts, errs, dqsq=False, norm=None, max_shifts=N
         # Add the 2D Gaussians
         for [x0, y0], [wx, wy] in zip(shifts[inds], errs[inds]):
             gx = np.exp(np.square(x - x0) / (-2. * np.square(wx))) / wx
-            if dqsq:
-                gy = np.exp(np.square(y - (y0 + x0)) / (-2. * np.square(wy))) / wy
-            else:
-                gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
+            gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
             Z += np.outer(gy, gx) / (2. * np.pi)
     
     # Otherwise, use all shifts
@@ -509,10 +515,7 @@ def make_2D_distribution(x, y, shifts, errs, dqsq=False, norm=None, max_shifts=N
         # Add the 2D Gaussians
         for [x0, y0], [wx, wy] in zip(shifts, errs):
             gx = np.exp(np.square(x - x0) / (-2. * np.square(wx))) / wx
-            if dqsq:
-                gy = np.exp(np.square(y - (y0 + x0)) / (-2. * np.square(wy))) / wy
-            else:
-                gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
+            gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
             Z += np.outer(gy, gx) / (2. * np.pi)
     
     if norm is None:
@@ -524,7 +527,7 @@ def make_2D_distribution(x, y, shifts, errs, dqsq=False, norm=None, max_shifts=N
 
 
 
-def make_2D_distributions(lims, n_points, all_shifts, all_errs, dqsq=False, norm=None, max_shifts=None, seed=None):
+def make_2D_distributions(lims, n_points, all_shifts, all_errs, conv_x, conv_y, dqsq=False, norm=None, max_shifts=None, seed=None):
     """
     Generate 2D distributions of chemical shifts from arrays of shifts and errors of each distribution
     
@@ -532,6 +535,8 @@ def make_2D_distributions(lims, n_points, all_shifts, all_errs, dqsq=False, norm
                 - n_points      Number of points in the distributions
                 - all_shifts    Array of shifts for each distribution
                 - all_errs      Array of predicted error for each distribution
+                - conv_x        Shielding to shift conversion parameters in the x axis
+                - conv_y        Shielding to shift conversion parameters in the y axis
                 - dqsq          Whether or not the second dimension is double quantum
                 - norm          Distribution normalization to apply
                                     None: no normalization
@@ -553,7 +558,16 @@ def make_2D_distributions(lims, n_points, all_shifts, all_errs, dqsq=False, norm
     Zs = []
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
         print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
-        Zs.append(make_2D_distribution(x, y, sh, er, dqsq=dqsq, norm=norm, max_shifts=max_shifts, seed=seed))
+        sh2 = sh.copy()
+        er2 = er.copy()
+        sh2[:, 0] = sh2[:, 0]*conv_x[0]+conv_x[1]
+        sh2[:, 1] = sh2[:, 1]*conv_y[0]+conv_y[1]
+        er2[:, 0] *= np.abs(conv_x[0])
+        er2[:, 1] *= np.abs(conv_y[0])
+        if dqsq:
+            sh2[:, 1] += sh2[:, 0]
+            er2[:, 1] = np.sqrt(np.square(er2[:, 0]) + np.square(er2[:, 1]))
+        Zs.append(make_2D_distribution(x, y, sh2, er2, norm=norm, max_shifts=max_shifts, seed=seed))
         print("  Distribution constructed!\n")
     
     return X, Y, Zs
@@ -732,34 +746,40 @@ def compute_scores_2D(exp, shifts, errs, conv_x, conv_y, dqsq=False, max_shifts=
     
         print("  Evaluating distribution {}/{}...".format(i+1, len(shifts)))
         
-        conv_shifts = np.zeros_like(s)
-        conv_shifts[:,0] = s[:,0]*conv_x[0]+conv_x[1]
-        conv_shifts[:,1] = s[:,1]*conv_y[0]+conv_y[1]
+        sh2 = np.zeros_like(s)
+        sh2[:,0] = s[:,0]*conv_x[0]+conv_x[1]
+        sh2[:,1] = s[:,1]*conv_y[0]+conv_y[1]
+        er2 = er.copy()
+        er2[:, 0] *= np.abs(conv_x[0])
+        er2[:, 1] *= np.abs(conv_y[0])
+        if dqsq:
+            sh2[:, 1] += sh2[:, 0]
+            er2[:, 1] = np.sqrt(np.square(er2[:, 0])+np.square(er2[:, 1]))
     
         # If no accuracy is set, Compute the values of the distribution on the grid of experimental shifts
         if acc_x is None and acc_y is None:
-            Z = make_2D_distribution(x, y, conv_shifts, er, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
+            Z = make_2D_distribution(x, y, sh2, er2, max_shifts=max_shifts, seed=seed)
             these_scores = np.diag(Z)
         
         # If accuracy is set only along the x-axis, integrate over the range set
         elif acc_y is None:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x[j*N:(j+1)*N], y, conv_shifts, er, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
+                Z = make_2D_distribution(x[j*N:(j+1)*N], y, sh2, er2, max_shifts=max_shifts, seed=seed)
                 these_scores[j] = np.trapz(Z[j], x=x[j*N:(j+1)*N])
         
         # If accuracy is set only along the y-axis, integrate over the range set
         elif acc_x is None:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x, y[j*N:(j+1)*N], conv_shifts, er, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
+                Z = make_2D_distribution(x, y[j*N:(j+1)*N], sh2, er2, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
                 these_scores[j] = np.trapz(Z[:, j], x=y[j*N:(j+1)*N])
         
         # If accuracy is set along both axes, integrate over the rectangle set
         else:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x[j*N:(j+1)*N], y[j*N:(j+1)*N], conv_shifts, er, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
+                Z = make_2D_distribution(x[j*N:(j+1)*N], y[j*N:(j+1)*N], sh2, er2, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
                 these_scores[j] = np.trapz(np.trapz(Z, x=x[j*N:(j+1)*N]), x=y[j*N:(j+1)*N])
         
         if np.sum(these_scores) < 1e-6:

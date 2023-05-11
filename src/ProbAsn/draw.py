@@ -52,13 +52,12 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 
 
 
-def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.1, c="k", N_valid=int(1e4)):
+def place_annot_1D(tops, lims, labels, f, ax, fontsize=16, dMin=0.01, h=1.1, c="k", N_valid=int(1e4)):
     """
     Place labels on a 1D plot of distributions
 
     Inputs: - tops          Position of the top of each distribution (shielding)
             - lims          Limits of the plot (shielding)
-            - conv          Conversion parameters [slope, offset] from shielding to shift
             - labels        Labels to write (in order of the tops)
             - f             Figure handle
             - ax            Axis (subplot) handle
@@ -74,8 +73,8 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
     # Initialize the maximum height so that the labels are inside the plot
     max_h = 0.
 
-    # Sort the tops (increasing shielding, left to right on the final plot)
-    sorted_inds = np.argsort(tops)
+    # Sort the tops (decreasing shift, left to right on the final plot)
+    sorted_inds = np.argsort(tops)[::-1]
     sorted_tops = [tops[i] for i in sorted_inds]
     sorted_labels = [labels[i] for i in sorted_inds]
 
@@ -125,9 +124,9 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
         # Loop over all neighbouring label pairs
         for i in range(1, len(places)):
             # If the distance between the two labels is too small, spread these two labels
-            if places[i-1] + (sizes[i-1]/2) > places[i] - (sizes[i]/1) - dx:
-                places[i-1] -= dx/2
-                places[i] += dx/2
+            if places[i-1] - (sizes[i-1]/2) < places[i] + (sizes[i]/1) + dx:
+                places[i-1] += dx/2
+                places[i] -= dx/2
                 valid = False
 
             # If label i-1 goes outside the plot range (horizontally), bring it back
@@ -149,11 +148,11 @@ def place_annot_1D(tops, lims, conv, labels, f, ax, fontsize=16, dMin=0.01, h=1.
     # Print the labels in the plot, connect them to their corresponing distribution
     for i, (p, t, l) in enumerate(zip(places, sorted_tops, sorted_labels)):
         if c == "k":
-            ax.text(p*conv[0]+conv[1], h, l.replace("/", "/\n"), ha="center", va="bottom", size=fontsize)
-            ax.plot([t*conv[0]+conv[1], p*conv[0]+conv[1]], [1., h], "k")
+            ax.text(p, h, l.replace("/", "/\n"), ha="center", va="bottom", size=fontsize)
+            ax.plot([t, p], [1., h], "k")
         elif c == "C":
-            ax.text(p*conv[0]+conv[1], h, l.replace("/", "/\n"), ha="center", va="bottom", color="C{}".format(i), size=fontsize)
-            ax.plot([t*conv[0]+conv[1], p*conv[0]+conv[1]], [1., h], "C{}".format(i))
+            ax.text(p, h, l.replace("/", "/\n"), ha="center", va="bottom", color="C{}".format(i), size=fontsize)
+            ax.plot([t, p], [1., h], "C{}".format(i))
         else:
             raise ValueError("Unknown color scheme: {}".format(c))
 
@@ -196,7 +195,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
         ax.plot([shifts[0]*conv[0]+conv[1], shifts[0]*conv[0]+conv[1]], [0., 1.], "k")
         
         # Plot the distribution function
-        ax.plot(x*conv[0]+conv[1], y)
+        ax.plot(x, y)
 
     else:
         # Get center and width of the shift distribution
@@ -211,7 +210,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
         hs, _, _ = ax.hist(shifts*conv[0]+conv[1], bins=n_bins, range=[sM*conv[0]+conv[1], sm*conv[0]+conv[1]])
 
         # Plot the distribution function
-        ax.plot(x*conv[0]+conv[1], y * np.max(hs))
+        ax.plot(x, y * np.max(hs))
 
     # Set axes labels and limits
     ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
@@ -240,7 +239,7 @@ def draw_1D_distribution_and_hist(x, y, shifts, conv, w, elem, fsize=(4,3), font
 
 
 def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_elem, fsize=(4.5,3),
-                                  fontsize=12, n_bins=50, levels=[0.1, 0.3, 0.5, 0.7, 0.9], ext=5, f=None, display=False, custom=False, thresh=1e-2):
+                                  fontsize=12, n_bins=50, levels=[0.1, 0.3, 0.5, 0.7, 0.9], ext=5, f=None, display=False, custom=False, dqsq=False, thresh=1e-2):
     """
     Plot a 2D distribution along with the histogram of the corresponding data. Optionally plot Gaussian fitting of the distribution function or of the histogram of the data
 
@@ -261,6 +260,7 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
             - f             Filename to save the plot to
             - display       Whether to display the plot or not
             - custom        Whether a custom distribution is set
+            - dqsq          Whether the second dimension is double quantum
             - thresh        Threshold for custom distribution plotting
     """
     
@@ -302,26 +302,37 @@ def draw_2D_distribution_and_hist(X, Y, Z, shifts, conv_x, conv_y, w, elem, nei_
         ry = sM_y - sm_y
 
         # Plot data histogram
-        cs = ax.hist2d(shifts[:,0]*conv_x[0]+conv_x[1], shifts[:,1]*conv_y[0]+conv_y[1],
-                       bins=n_bins, range=[[sM_x*conv_x[0]+conv_x[1], sm_x*conv_x[0]+conv_x[1]],
-                       [sM_y*conv_y[0]+conv_y[1], sm_y*conv_y[0]+conv_y[1]]], cmin=0.5, cmap=cm)
+        if dqsq:
+            cs = ax.hist2d(shifts[:,0]*conv_x[0]+conv_x[1], (shifts[:,0]*conv_x[0]+conv_x[1])+(shifts[:,1]*conv_y[0]+conv_y[1]),
+                        bins=n_bins, range=[[sM_x*conv_x[0]+conv_x[1], sm_x*conv_x[0]+conv_x[1]],
+                        [(sM_x*conv_x[0]+conv_x[1])+(sM_y*conv_y[0]+conv_y[1]), (sm_x*conv_x[0]+conv_x[1])+(sm_y*conv_y[0]+conv_y[1])]], cmin=0.5, cmap=cm)
+        else:
+            cs = ax.hist2d(shifts[:,0]*conv_x[0]+conv_x[1], shifts[:,1]*conv_y[0]+conv_y[1],
+                        bins=n_bins, range=[[sM_x*conv_x[0]+conv_x[1], sm_x*conv_x[0]+conv_x[1]],
+                        [sM_y*conv_y[0]+conv_y[1], sm_y*conv_y[0]+conv_y[1]]], cmin=0.5, cmap=cm)
 
         cbar = fig.colorbar(cs[3], label="Number of instances")
         cbar.ax.yaxis.set_major_locator(MaxNLocator(nbins="auto", integer=True))
 
     # Plot distribution function
     cm = truncate_colormap(plt.get_cmap("Blues"), 0.3, 0.9)
-    ax.contour(X*conv_x[0]+conv_x[1], Y*conv_y[0]+conv_y[1], Z, levels, cmap=cm)
+    ax.contour(X, Y, Z, levels, cmap=cm)
 
     # Set labels and axes limits
     ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
     ax.set_ylabel(isotopes[nei_elem] + " chemical shift [ppm]")
 
     ax.set_xlim(sm_x*conv_x[0]+conv_x[1], sM_x*conv_x[0]+conv_x[1])
-    ax.set_ylim(sm_y*conv_y[0]+conv_y[1], sM_y*conv_y[0]+conv_y[1])
+    if dqsq:
+        ax.set_ylim((sm_x*conv_x[0]+conv_x[1])+(sm_y*conv_y[0]+conv_y[1]), (sM_x*conv_x[0]+conv_x[1])+(sM_y*conv_y[0]+conv_y[1]))
+    else:
+        ax.set_ylim(sm_y*conv_y[0]+conv_y[1], sM_y*conv_y[0]+conv_y[1])
 
     # Write the depth of the graph and the number of instances
-    ax.text(0.01, 0.98, f"w = {w}, N = {len(shifts)}\n$\mu_x$ = {mu0_x*conv_x[0]+conv_x[1]:.2f}\n$\sigma_x$ = {sig0_x*np.abs(conv_x[0]):.2f}\n$\mu_y$ = {mu0_y*conv_y[0]+conv_y[1]:.2f}\n$\sigma_y$ = {sig0_y*np.abs(conv_y[0]):.2f}", va="top", transform=ax.transAxes)
+    if dqsq:
+        ax.text(0.01, 0.98, f"w = {w}, N = {len(shifts)}\n$\mu_x$ = {mu0_x*conv_x[0]+conv_x[1]:.2f}\n$\sigma_x$ = {sig0_x*np.abs(conv_x[0]):.2f}\n$\mu_y$ = {(mu0_x*conv_x[0]+conv_x[1])+(mu0_y*conv_y[0]+conv_y[1]):.2f}\n$\sigma_y$ = {(sig0_x*np.abs(conv_x[0]))+(sig0_y*np.abs(conv_y[0])):.2f}", va="top", transform=ax.transAxes)
+    else:
+        ax.text(0.01, 0.98, f"w = {w}, N = {len(shifts)}\n$\mu_x$ = {mu0_x*conv_x[0]+conv_x[1]:.2f}\n$\sigma_x$ = {sig0_x*np.abs(conv_x[0]):.2f}\n$\mu_y$ = {mu0_y*conv_y[0]+conv_y[1]:.2f}\n$\sigma_y$ = {sig0_y*np.abs(conv_y[0]):.2f}", va="top", transform=ax.transAxes)
 
     fig.tight_layout()
 
@@ -364,7 +375,7 @@ def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=Non
     
     tops = sim.get_distribution_max_1D(x, ys)
     
-    sorted_inds = np.argsort(tops)
+    sorted_inds = np.argsort(tops)[::-1]
     
     if fsize == "auto":
         fsize = (6,3)
@@ -378,7 +389,7 @@ def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=Non
 
         # Plot the distributions
         for i in sorted_inds:
-            ax.plot(x*conv[0]+conv[1], ys[i])
+            ax.plot(x, ys[i])
 
         ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
         
@@ -386,11 +397,11 @@ def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=Non
         ax.spines["left"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-        ax.set_xlim(lims[0]*conv[0]+conv[1], lims[1]*conv[0]+conv[1])
+        ax.set_xlim(lims[1], lims[0])
         ax.set_yticks([])
 
         # Place annotations on the plot
-        success = place_annot_1D(tops, lims, conv, labels, fig, ax, fontsize=fontsize-2, dMin=dMin, c=c)
+        success = place_annot_1D(tops, lims, labels, fig, ax, fontsize=fontsize-2, dMin=dMin, c=c)
         
         if not success:
             tmp = list(fsize)
@@ -419,7 +430,7 @@ def draw_1D_distributions(x, ys, conv, labels, elem, lims=None, exps=None, f=Non
 
 
 def draw_2D_distributions(X, Y, Zs, conv_x, conv_y, labels, elem, nei_elem, lims=None, exps=None,
-                          levels=[0.1, 0.5, 0.9], f=None, fsize=(5, 5), fontsize=12, ncol=4, display=False):
+                          levels=[0.1, 0.5, 0.9], f=None, fsize=(5, 5), fontsize=12, ncol=4, dqsq=False, display=False):
     """
     Plot 2D distributions of chemical shifts. Optionally plot experimental shifts along with the distributions
 
@@ -440,8 +451,7 @@ def draw_2D_distributions(X, Y, Zs, conv_x, conv_y, labels, elem, nei_elem, lims
             - fsize         Size of the generated plot
             - f             Filename to save the plot to
             - display       Whether to display the plot or not
-            - l_size        Font size for the labels
-            - h             Maximum value of the distributions where a label can be placed
+            - dqsq          Whether the second dimension is double quantum
     """
 
     plt.rcParams.update({"font.size": fontsize})
@@ -450,7 +460,7 @@ def draw_2D_distributions(X, Y, Zs, conv_x, conv_y, labels, elem, nei_elem, lims
     
     tops = sim.get_distribution_max_2D(X, Y, Zs)
     
-    sorted_inds = np.argsort(tops[:, 0])
+    sorted_inds = np.argsort(tops[:, 0])[::-1]
 
     cs = []
 
@@ -468,8 +478,8 @@ def draw_2D_distributions(X, Y, Zs, conv_x, conv_y, labels, elem, nei_elem, lims
 
         # Plot the distribution
         cm = truncate_colormap(plt.get_cmap(cmaps[k]), 0.3, 0.9)
-        ax.contour(X*conv_x[0]+conv_x[1], Y*conv_y[0]+conv_y[1], Zs[i], levels, cmap=cm)
-        ax.plot(tops[i, 0]*conv_x[0]+conv_x[1], tops[i, 1]*conv_y[0]+conv_y[1], ".", color=cm(1.))
+        ax.contour(X, Y, Zs[i], levels, cmap=cm)
+        ax.plot(tops[i, 0], tops[i, 1], ".", color=cm(1.))
         cs.append(cm(0.5))
         
         k += 1
@@ -478,8 +488,8 @@ def draw_2D_distributions(X, Y, Zs, conv_x, conv_y, labels, elem, nei_elem, lims
     ax.set_xlabel(isotopes[elem] + " chemical shift [ppm]")
     ax.set_ylabel(isotopes[nei_elem] + " chemical shift [ppm]")
 
-    ax.set_xlim(lims[0,0] * conv_x[0] + conv_x[1], lims[0,1] * conv_x[0] + conv_x[1])
-    ax.set_ylim(lims[1,0] * conv_y[0] + conv_y[1], lims[1,1] * conv_y[0] + conv_y[1])
+    ax.set_xlim(lims[0,1], lims[0,0])
+    ax.set_ylim(lims[1,1], lims[1,0])
 
     # Generate legends
     hs = []

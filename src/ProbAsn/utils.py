@@ -60,7 +60,7 @@ def get_default_values(block):
     
     elif block == "NMR":
         params = {"nei_elem": None,
-                  "is_dqsq": False,
+                  "dqsq": False,
                   "n_points_distrib": 1001,
                   "assign": True,
                   "multiplicities": None,

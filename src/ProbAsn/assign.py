@@ -183,7 +183,7 @@ def get_assignment_pool(possible_asn, assigned):
 
 
 def generate_global_asns(possible_asns, scores, n_dist, n_exp, ls, es, equiv,
-                         global_asns=[], already_linked=[], rank=0, max_asn=None,
+                         global_asns=[], already_linked=[], dqsq=False, rank=0, max_asn=None,
                          r_max_asn=0, max_excess=None, disp_rank=-1, t_start=None):
     """
     Recursively generate global assignments given possible individual assignments.
@@ -197,6 +197,7 @@ def generate_global_asns(possible_asns, scores, n_dist, n_exp, ls, es, equiv,
             - equiv             Equivalent nuclei/distributions
             - global_asns       Already found global assignments
             - already_linked    Already assigned nuclei/distributions
+            - dqsq              Whether the neighbouring shift should be double quantum (only for 2D experiments)
             - rank              Assignment rank
             - max_asn           Maximum number of assignments to consider
             - r_max_asn         Rank from which to start reducing the number of assignments
