@@ -1,7 +1,7 @@
 # ProbAsn
 Probabilistic assignment of organic crystals
 
-This is the code for the paper "Bayesian Probabilistic Assignment of Chemical Shifts in Organic Solids", doi: [...].
+This is the code for the paper [Bayesian Probabilistic Assignment of Chemical Shifts in Organic Solids](https://doi.org/10.1126/sciadv.abk2341).
 
 # Installation
 
@@ -11,13 +11,13 @@ You first need to install the Python package using pip. This will install all th
 
 > pip install .
 
-Alternatively, a Python environment containing all the required libraries can be installed by running the "install_env.sh" script (requires anaconda to be installed: https://www.anaconda.com)
+Alternatively, a Python environment containing all the required libraries can be installed by running the "install_env.sh" script (requires [anaconda](https://www.anaconda.com) to be installed)
 
 ## Database
 
-The database is available from: [TBA]
+The database (updated with predictions from [ShiftML2](https://doi.org/10.1021/acs.jpcc.2c03854)) is available from this [Materialscloud archive](https://archive.materialscloud.org/deposit/records/1824), file [db.zip](https://archive.materialscloud.org/record/file?filename=db.zip&record_id=1824)
 
-To download the database, you can enter Python in the "examples" directory, import the ProbAsn package and use the "download_database()" function:
+To download the database, you can enter Python in the `examples` directory, import the `ProbAsn` package and use the `download_database()` function:
 
 > cd examples
 >
@@ -29,21 +29,21 @@ To download the database, you can enter Python in the "examples" directory, impo
 >>
 >> quit()
 
-Alternatively, download the file and place it in the "db" directory.
+Alternatively, download the file and place it in the `db` directory.
 
 Then, you should be good to go!
 
 # Running the software
 
-To perform the assignment of a molecule, prepare an input file as described in "input_file_description.md" or modify an existing input file that you can find in the "example" directory. Then, run the assignment by running:
+To perform the assignment of a molecule, prepare an input file as described in `input_file_description.md` or modify an existing input file that you can find in the `example` directory. Then, perform the assignment by running:
 
 > python run.py input_file.in
 
-Alternatively, you can run the "run.ipynb" notebook and modify the input file in cell 2.
+Alternatively, you can run the `run.ipynb` notebook and modify the input file in cell 2.
 
 # Output files
 
-The "output" directory will contain the output of the software. Several directories and files will be created. The exact name of the files will change depending on the analysis performed. The output files are described below, with parts of filenames subject to change indicated by square brackets:
+The `output` directory will contain the output of the software. Several directories and files will be created. The exact name of the files will change depending on the analysis performed. The output files are described below, with parts of filenames subject to change indicated by square brackets:
 
 - structure.[mol]: Molecular structure (useful to identify the atom labeling)
 - graphs_[C]/: Directory containing plots of the graphs identified for the element of interest in the molecule.

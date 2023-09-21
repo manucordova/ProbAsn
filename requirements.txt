@@ -3,4 +3,3 @@ numpy
 ase
 networkx>=2.7
 matplotlib
-gdown

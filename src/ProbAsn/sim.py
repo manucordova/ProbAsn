@@ -1,10 +1,10 @@
-####################################################################################################
-###                                                                                              ###
-###                             Functions for simulating spectra                                 ###
-###                               Author: Manuel Cordova (EPFL)                                  ###
-###                                Last modified: 03.09.2021                                     ###
-###                                                                                              ###
-####################################################################################################
+###############################################################################
+#                                                                             #
+#                      Functions for simulating spectra                       #
+#                        Author: Manuel Cordova (EPFL)                        #
+#                          Last modified: 03.09.2021                          #
+#                                                                             #
+###############################################################################
 
 # Import libraries
 import numpy as np
@@ -17,103 +17,88 @@ nm = nx.algorithms.isomorphism.categorical_node_match("elem", "X")
 em = nx.algorithms.isomorphism.categorical_edge_match("w", -1)
 
 
+def cleanup_methyl_protons(
+    Gs,
+    atoms,
+    bonds,
+    arrs=[]
+):
+    """Gather methyl proton shifts into only one per methyl group.
 
-def cleanup_methyl_protons(labels, Gs, envs, shifts, errs, ws, crysts, inds, hashes, atoms, bonds):
+    Parameters
+    ----------
+    Gs : array_like
+        List of graphs corresponding to each distribution.
+    atoms : list
+        List of atomic species in the molecule.
+    bonds : list
+        List of bonded atoms for each atom in the moecule (by index).
+    arrs : list
+        List of arrays to apply the selection to.
+
+    Returns
+    -------
+    sel_Gs : list
+        Cleaned list of graphs
+    sel_arrs : list
+        List of cleaned arrays
     """
-    Gather methyl proton shifts into only one per methyl group
-    
-    Inputs:     - labels        List of labels for each distribution
-                - Gs            Graph of each distribution
-                - envs          Environment of each graph
-                - shifts        Predicted shifts in each distribution
-                - errs          Prediction errors in each distribution
-                - ws            Maximum depth for each distribution
-                - crysts        Crystals in each distribution
-                - inds          Indices of the atoms in each distribution
-                - atoms         List of atoms in the molecule
-                - bonds         Bonded atoms for each atom in the molecule (by index)
-    
-    Outputs:    - new_labels    Cleaned list of labels for each distribution
-                - new_Gs        Cleaned list of graphs
-                - new_shifts    Cleaned list of predicted shifts in each distribution
-                - new_errs      Cleaned list of prediction errors in each distribution
-                - new_ws        Cleaned list of maximum depth for each distribution
-                - new_crysts    Cleaned array of crystals in each distribution
-                - new_inds      Cleaned array of indices of the atoms in each distribution
-    """
-    
+
     # Initialize new arrays
-    new_labels = []
-    new_Gs = []
-    new_envs = []
-    new_shifts = []
-    new_errs = []
-    new_ws = []
-    new_crysts = []
-    new_inds = []
-    new_hashes = []
-    
+    sel_Gs = []
+    sel_arrs = []
+    n_arrs = len(arrs)
+    for i in range(n_arrs):
+        sel_arrs.append([])
+
     # Array to store already identified methyl groups
     methyls = []
-    
+
     # Loop over all graphs
-    for l, G, env, sh, er, w, cryst, ind, h in zip(labels, Gs, envs, shifts, errs, ws, crysts, inds, hashes):
-        
+    for ai, G in enumerate(Gs):
+
         # Get the index of the central node
         i = G.nodes[0]["ind"]
-        # Check that there is only one neighbour (H should be linked to only one atom
+        # Check that there is only one neighbour
+        # (H should be linked to only one atom)
         if len(bonds[i]) == 1:
             j = bonds[i][0]
-            
+
             # Check if there are at least three protons linked to the neighbour
             nH = [atoms[k] for k in bonds[j]].count("H")
-            
+
             if nH >= 3:
-                # If we find a new methyl proton, add it,
-                #   otherwise skip it if it is part of an already known methyl
+                # If we find a new methyl proton, add it,
+                # otherwise skip it if it is part of an already known methyl
                 if j not in methyls:
                     methyls.append(j)
-                    new_labels.append(l)
-                    new_Gs.append(G)
-                    new_envs.append(env)
-                    new_shifts.append(sh)
-                    new_errs.append(er)
-                    new_ws.append(w)
-                    new_crysts.append(cryst)
-                    new_inds.append(ind)
-                    new_hashes.append(h)
-            
+                    sel_Gs.append(G)
+                    for i in range(n_arrs):
+                        sel_arrs[i].append(arrs[i][ai])
+
             # If this is not a methyl proton, add it
             else:
-                new_labels.append(l)
-                new_Gs.append(G)
-                new_envs.append(env)
-                new_shifts.append(sh)
-                new_errs.append(er)
-                new_ws.append(w)
-                new_crysts.append(cryst)
-                new_inds.append(ind)
-                new_hashes.append(h)
-        
+                sel_Gs.append(G)
+                for i in range(n_arrs):
+                    sel_arrs[i].append(arrs[i][ai])
+
         # If the proton is bonded to more than one atom, add it
         else:
-            new_labels.append(l)
-            new_Gs.append(G)
-            new_envs.append(env)
-            new_shifts.append(sh)
-            new_errs.append(er)
-            new_ws.append(w)
-            new_crysts.append(cryst)
-            new_inds.append(ind)
-            new_hashes.append(h)
-    
-    return new_labels, new_Gs, new_envs, new_shifts, new_errs, new_ws, new_crysts, new_inds, new_hashes
+            sel_Gs.append(G)
+            for i in range(n_arrs):
+                sel_arrs[i].append(arrs[i][ai])
 
+    return sel_Gs, sel_arrs
 
 
 def cleanup_methyls(labels, shifts, errs, ws, crysts, inds, hashes, atoms, bonds):
-    """
-    Gather methyl 2D shifts
+    """Gather methyl 2D shifts.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs:     - labels        List of labels for each distribution
                 - shifts        Predicted shifts in each distribution
@@ -192,8 +177,13 @@ def cleanup_methyls(labels, shifts, errs, ws, crysts, inds, hashes, atoms, bonds
 
 
 def cleanup_equivalent(labels, shifts, errs, ws, crysts, inds, hashes):
-    """
-    Gather equivalent graphs (identified by their shift distributions)
+    """Gather equivalent graphs (identified by their shift distributions).
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs:     - labels        List of labels of the distributions
                 - shifts        List of predicted shifts in each distribution
@@ -243,8 +233,13 @@ def cleanup_equivalent(labels, shifts, errs, ws, crysts, inds, hashes):
 
 
 def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
-    """
-    Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor
+    """Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
 
     Inputs: - all_shifts    List of shifts in the distributions
             - all_errs      List of predicted errors in the distributions
@@ -310,6 +305,12 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
     """
     Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor
 
+    Parameters
+    ----------
+
+    Returns
+    -------
+
     Inputs:     - all_shifts    List of all shifts in the distributions
                 - all_errs      List of predicted errors in the distributions
                 - conv_x        Shielding to shift conversion parameters in the x axis
@@ -329,7 +330,6 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
     lx = np.ones(2) * np.mean(all_shifts[0][:,0])
     ly = np.ones(2) * np.mean(all_shifts[0][:,1])
 
-
     # Get minimum and maximum peak of each distribution in each dimension
     for shifts, errs in zip(all_shifts, all_errs):
         imin_x = np.argmin(shifts[:,0])
@@ -337,12 +337,13 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
         imin_y = np.argmin(shifts[:,1])
         imax_y = np.argmax(shifts[:,1])
 
-        # Add the corresponding errors to the minimum and maximum peaks
+        # Add the corresponding errors to the minimum and maximum peaks
         if dx == "sel":
             min_x = shifts[imin_x, 0] - errs[imin_x, 0]
             max_x = shifts[imax_x, 0] + errs[imax_x, 0]
             min_y = shifts[imin_y, 1] - errs[imin_y, 1]
             max_y = shifts[imax_y, 1] + errs[imax_y, 1]
+
         # Add the maximum error to the minimum and maximum peaks
         elif dx == "max":
             mx = np.max(errs[:, 0])
@@ -351,6 +352,7 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
             max_x = shifts[imax_x, 0] + mx
             min_y = shifts[imin_y, 1] - my
             max_y = shifts[imax_y, 1] + my
+
         # Add the mean error to the minimum and maximum peaks
         elif dx == "mean":
             mx = np.mean(errs[:, 0])
@@ -359,6 +361,7 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
             max_x = shifts[imax_x, 0] + mx
             min_y = shifts[imin_y, 1] - my
             max_y = shifts[imax_y, 1] + my
+
         # Add the rms error to the minimum and maximum peaks
         elif dx == "rms":
             mx = np.sqrt(np.mean(np.square(errs[:, 0])))
@@ -398,6 +401,12 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
 def make_1D_distribution(x, shifts, errs, norm=None, max_shifts=None, seed=None):
     """
     Generate 1D distribution of chemical shifts from an array of shifts and errors
+
+    Parameters
+    ----------
+
+    Returns
+    -------
 
     Inputs: - x             Points in the x-axis to draw the Gaussians on
             - shifts        List of shifts in the distribution
@@ -445,6 +454,12 @@ def make_1D_distribution(x, shifts, errs, norm=None, max_shifts=None, seed=None)
 def make_1D_distributions(lims, n_points, all_shifts, all_errs, conv, norm=None, max_shifts=None, seed=None):
     """
     Generate 1D distributions of chemical shifts from arrays of shifts and errors of each distribution
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs:     - lims          Limits of the distributions
                 - n_points      Number of points in the distributions
@@ -479,6 +494,12 @@ def make_1D_distributions(lims, n_points, all_shifts, all_errs, conv, norm=None,
     
 def make_2D_distribution(x, y, shifts, errs, norm=None, max_shifts=None, seed=None):
     """
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs: - x             Array of x-values to draw the Gaussians on
             - y             Array of y-values to draw the Gaussians on
@@ -530,6 +551,12 @@ def make_2D_distribution(x, y, shifts, errs, norm=None, max_shifts=None, seed=No
 def make_2D_distributions(lims, n_points, all_shifts, all_errs, conv_x, conv_y, dqsq=False, norm=None, max_shifts=None, seed=None):
     """
     Generate 2D distributions of chemical shifts from arrays of shifts and errors of each distribution
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs:     - lims          Limits of the distributions
                 - n_points      Number of points in the distributions
@@ -577,6 +604,12 @@ def make_2D_distributions(lims, n_points, all_shifts, all_errs, conv_x, conv_y, 
 def get_distribution_max_1D(x, ys):
     """
     Obtain the maximum of each distribution
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs: - x         Array of shielding values to plot the distributions against
             - ys        List of distributions
@@ -605,6 +638,12 @@ def get_distribution_max_1D(x, ys):
 def get_distribution_max_2D(X, Y, Zs):
     """
     Obtain the maximum of each distribution
+
+    Parameters
+    ----------
+
+    Returns
+    -------
 
     Inputs: - X         Grid of shielding values of the first element to plot the distribution against
             - Y         Grid of shielding values of the second element to plot the distribution against
@@ -637,6 +676,12 @@ def compute_scores_1D(exp, shifts, errs, conv, max_shifts=None, seed=None, acc=N
     Compute the scores for every possible assignment. If the variable "acc" is set to None, the probability density
     at the experimental shift yields the score. If "acc" is set to a value, the probability between
     the experimental shift e - acc and e + acc (computed as the numerical integral) is used as the score.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
     
     Inputs: - exp           List of experimental shifts
             - shifts        List of shifts in each distribution
@@ -691,6 +736,12 @@ def compute_scores_2D(exp, shifts, errs, conv_x, conv_y, dqsq=False, max_shifts=
     Compute the scores for every possible assignment. If the variable "acc_x/acc_y" is set to None, the probability density
     at the experimental shift yields the score. If "acc_x/acc_y" are set to numerical values, the probability between
     the experimental shift e - acc and e + acc in each dimension (computed as the numerical integral) is used as the score.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
 
     Inputs: - exp           List of experimental shifts
             - shifts        List of shifts in each distribution

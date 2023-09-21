@@ -93,8 +93,15 @@ def make_mol(mol_in, in_type="smi", out_type="mol", from_file=False, name="", ma
 
     # Set molecule name
     mol.title = name
+
     # Add implicit hydrogens
-    mol.addh()
+    has_h =False
+    for atom in mol.atoms:
+        if atom.type == "H":
+            has_h = True
+            break
+    if not has_h:
+        mol.addh()
 
     if make_3d:
         # Make 3D coordinates
