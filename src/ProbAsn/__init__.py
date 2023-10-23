@@ -4,7 +4,6 @@ from . import draw
 from . import graph
 from . import sim
 from . import utils
-from . import gui
 
 __all__ = [
     "assign",
@@ -13,5 +12,4 @@ __all__ = [
     "graph",
     "sim",
     "utils",
-    "gui",
 ]
