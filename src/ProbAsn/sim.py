@@ -2,7 +2,7 @@
 #                                                                             #
 #                      Functions for simulating spectra                       #
 #                        Author: Manuel Cordova (EPFL)                        #
-#                          Last modified: 03.09.2021                          #
+#                          Last modified: 04.10.2023                          #
 #                                                                             #
 ###############################################################################
 
@@ -33,15 +33,15 @@ def cleanup_methyl_protons(
         List of atomic species in the molecule.
     bonds : list
         List of bonded atoms for each atom in the moecule (by index).
-    arrs : list
+    arrs : list, default=[]
         List of arrays to apply the selection to.
 
     Returns
     -------
     sel_Gs : list
-        Cleaned list of graphs
+        Cleaned list of graphs.
     sel_arrs : list
-        List of cleaned arrays
+        List of cleaned arrays.
     """
 
     # Initialize new arrays
@@ -91,167 +91,156 @@ def cleanup_methyl_protons(
     return sel_Gs, sel_arrs
 
 
-def cleanup_methyls(labels, shifts, errs, ws, crysts, inds, hashes, atoms, bonds):
+def cleanup_methyls(
+    labels,
+    atoms,
+    bonds,
+    arrs=[]
+):
     """Gather methyl 2D shifts.
 
     Parameters
     ----------
+    labels : list
+        List of labels for each distribution.
+    atoms : list
+        List of atomic species in the molecule.
+    bonds : list
+        List of bonded atoms for each atom in the moecule (by index).
+    arrs : list, default=[]
+        List of arrays to apply the selection to.
 
     Returns
     -------
-    
-    Inputs:     - labels        List of labels for each distribution
-                - shifts        Predicted shifts in each distribution
-                - errs          Prediction errors in each distribution
-                - ws            Maximum depth for each distribution
-                - crysts        Crystals in each distribution
-                - inds          Indices of the atoms in each distribution
-                - hashes        List of hashes for each graph
-                - atoms         List of atoms in the molecule
-                - bonds         Bonded atoms for each atom in the molecule (by index)
-    
-    Outputs:    - new_labels    Cleaned list of labels for each distribution
-                - new_Gs        Cleaned list of graphs
-                - new_shifts    Cleaned list of predicted shifts in each distribution
-                - new_errs      Cleaned list of prediction errors in each distribution
-                - new_ws        Cleaned list of maximum depth for each distribution
-                - new_crysts    Cleaned array of crystals in each distribution
-                - new_inds      Cleaned array of indices of the atoms in each distribution
+    sel_labels : list
+        Cleaned list of labels.
+    sel_arrs : list
+        List of cleaned arrays.
     """
-    
+
     # Initialize the updated lists
-    new_labels = []
-    new_shifts = []
-    new_errs = []
-    new_ws = []
-    new_crysts = []
-    new_inds = []
-    new_hashes = []
-    
+    sel_labels = []
+    sel_arrs = []
+    n_arrs = len(arrs)
+    for i in range(n_arrs):
+        sel_arrs.append([])
+
     # Array to store already identified methyl groups
     methyls = []
-    
+
     # Get element
     elem = ""
     for c in labels[0]:
         if c.isdigit():
             break
         elem += c
-    
+
     # Loop over all distributions
-    for l, sh, er, w, cryst, ind, h in zip(labels, shifts, errs, ws, crysts, inds, hashes):
-    
+    for li, label in enumerate(labels):
+
         # Get the index of the central node
-        i0 = int(l.split("-")[0].split(elem)[1]) - 1
+        i0 = int(label.split("-")[0].split(elem)[1]) - 1
         i = [k for k, e in enumerate(atoms) if e == elem][i0]
-    
-        # Check if there are at least three protons linked to the atom
+
+        # Check if there are at least three protons linked to the atom
         nH = [atoms[k] for k in bonds[i]].count("H")
-        
+
         if nH >= 3:
-            
+
             # If we find a new methyl proton, add it,
             #   otherwise skip it if it is part of an already known methyl
             if i not in methyls:
                 methyls.append(i)
-                new_labels.append(l)
-                new_shifts.append(sh)
-                new_errs.append(er)
-                new_ws.append(w)
-                new_crysts.append(cryst)
-                new_inds.append(ind)
-                new_hashes.append(h)
-        
+                sel_labels.append(label)
+                for i in range(n_arrs):
+                    sel_arrs[i].append(arrs[i][li])
+
         # If this is not a methyl, add it
         else:
-            new_labels.append(l)
-            new_shifts.append(sh)
-            new_errs.append(er)
-            new_ws.append(w)
-            new_crysts.append(cryst)
-            new_inds.append(ind)
-            new_hashes.append(h)
-        
-    return new_labels, new_shifts, new_errs, new_ws, new_crysts, new_inds, new_hashes
+            methyls.append(i)
+            sel_labels.append(label)
+            for i in range(n_arrs):
+                sel_arrs[i].append(arrs[i][li])
+
+    return sel_labels, sel_arrs
 
 
-
-def cleanup_equivalent(labels, shifts, errs, ws, crysts, inds, hashes):
+def cleanup_equivalent(
+    labels,
+    hashes,
+    arrs=[]
+):
     """Gather equivalent graphs (identified by their shift distributions).
 
     Parameters
     ----------
+    labels : list
+        List of labels for each distribution.
+    hashes : list
+        List of hashes for each distribution.
+    arrs : list, default=[]
+        List of arrays to apply the selection to.
 
     Returns
     -------
-    
-    Inputs:     - labels        List of labels of the distributions
-                - shifts        List of predicted shifts in each distribution
-                - errs          List of predicted errors in each distribution
-                - ws            List of weights of the distributions
-                - crysts        List of crystals in each distribution
-                - inds          List of the atoms in each distribution
-                - hashes        List of hashes for each graph
-                
-    Outputs:    - new_labels    Updated list of labels of the distributions
-                - new_shifts    Updated list of predicted shifts in each distribution
-                - new_errs      Updated list of predicted errors in each distribution
-                - new_ws        Updated list of weights of the distributions
-                - new_crysts    Updated list of crystals in each distribution
-                - new_inds      Updated list of the atoms in each distribution
+    sel_labels : list
+        Cleaned list of labels.
+    sel_hashes : list
+        Cleaned list of hashes.
+    sel_arrs : list
+        List of cleaned arrays.
     """
-    
+
     # Initialize the updated lists
-    new_labels = []
-    new_shifts = []
-    new_errs = []
-    new_ws = []
-    new_crysts = []
-    new_inds = []
-    new_hashes = []
-    
+    sel_labels = []
+    sel_hashes = []
+    sel_arrs = []
+    n_arrs = len(arrs)
+    for i in range(n_arrs):
+        sel_arrs.append([])
+
     # Loop over all the distributions
-    for l, sh, er, w, cr, ind, h in zip(labels, shifts, errs, ws, crysts, inds, hashes):
-        
+    for li, (label, hash) in enumerate(zip(labels, hashes)):
+
         # If the distribution is already found, modify the label
-        if h in new_hashes:
-            i = new_hashes.index(h)
-            new_labels[i] += "/{}".format(l)
-        
+        if hash in sel_hashes:
+            i = sel_hashes.index(hash)
+            sel_labels[i] += f"/{label}"
+
         # Otherwise, append the distribution to the updated list
         else:
-            new_labels.append(l)
-            new_shifts.append(sh)
-            new_errs.append(er)
-            new_ws.append(w)
-            new_crysts.append(cr)
-            new_inds.append(ind)
-            new_hashes.append(h)
-    
-    return new_labels, new_shifts, new_errs, new_ws, new_crysts, new_inds, new_hashes
+            sel_labels.append(label)
+            sel_hashes.append(hash)
+            for i in range(n_arrs):
+                sel_arrs[i].append(arrs[i][li])
 
+    return sel_labels, sel_hashes, sel_arrs
 
 
 def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
-    """Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor.
+    """Get the limits for a predicted 1D spectrum.
 
     Parameters
     ----------
+    all_shifts : list
+        List lists of shifts.
+    all_errs : list
+        List lists of prediction errors.
+    conv : list
+        Shielding to shift conversion parameters.
+    extend : float, default=0.1
+        How much to extend the range, fraction of the original range,
+        applied to both sides of the spectrum.
+    dx : str, default="rms"
+        How the error is incorporated to the minimum/maximum shift.
+        "sel" to use the error of the minimum and maximum peaks,
+        "max" to use the maximum error, "mean" to use the mean error,
+        "rms" to use the root-mean-square error.
 
     Returns
     -------
-
-    Inputs: - all_shifts    List of shifts in the distributions
-            - all_errs      List of predicted errors in the distributions
-            - conv          Shielding to shift conversion parameters
-            - extend        How much to extend the range (fraction of the original range, applied to both sides)
-            - dx            How the error is incorporated to the minimum/maximum shift:
-                                "sel": use the error of the minimum and maximum peaks
-                                "max": use the maximum error
-                                "mean": use the mean error
-                                "rms": use the rms error
-
-    Output: - lx            Limits in the x-dimension
+    lx : list
+        Limits of the spectrum.
     """
 
     # Initialize limits
@@ -264,7 +253,7 @@ def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
         imin = np.argmin(shifts)
         imax = np.argmax(shifts)
 
-        # Add the corresponding errors to the minimum and maximum peaks
+        # Add the corresponding errors to the minimum and maximum peaks
         if dx == "sel":
             min_x = shifts[imin] - errs[imin]
             max_x = shifts[imax] + errs[imax]
@@ -284,7 +273,9 @@ def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
             min_x = shifts[imin] - m
             max_x = shifts[imax] + m
         else:
-            raise ValueError("Unknown dx: {}".format(dx))
+            pp = f"Unknown dx: {dx} "
+            pp += "(accepted values: 'sel', 'max', 'mean', 'rms')"
+            raise ValueError(pp)
 
         # Get the limits
         lx[0] = min(lx[0], min_x)
@@ -300,42 +291,54 @@ def get_lims_1D(all_shifts, all_errs, conv, extend=0.1, dx="rms"):
     return np.sort(lx * conv[0] + conv[1])
 
 
-
-def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx="rms"):
-    """
-    Get the limits for a predicted 1D spectrum: obtain furthest peaks ± err to determine range, extend by a factor
+def get_lims_2D(
+    all_shifts,
+    all_errs,
+    conv_x,
+    conv_y,
+    dqsq=False,
+    extend=0.1,
+    dx="rms"
+):
+    """Get the limits for a predicted 2D spectrum.
 
     Parameters
     ----------
+    all_shifts : list
+        List lists of shifts.
+    all_errs : list
+        List lists of prediction errors.
+    conv_x : list
+        Shielding to shift conversion parameters in the x-axis.
+    conv_y : list
+        Shielding to shift conversion parameters in the y-axis.
+    dqsq : bool, default=false
+        Whether or not the y-dimension is double-quantum
+    extend : float, default=0.1
+        How much to extend the range, fraction of the original range,
+        applied to both sides of the spectrum.
+    dx : str, default="rms"
+        How the error is incorporated to the minimum/maximum shift.
+        "sel" to use the error of the minimum and maximum peaks,
+        "max" to use the maximum error, "mean" to use the mean error,
+        "rms" to use the root-mean-square error.
 
     Returns
     -------
-
-    Inputs:     - all_shifts    List of all shifts in the distributions
-                - all_errs      List of predicted errors in the distributions
-                - conv_x        Shielding to shift conversion parameters in the x axis
-                - conv_y        Shielding to shift conversion parameters in the y axis
-                - extend        How much to extend the range (fraction of the original range, applied to both sides)
-                - dx            How the error is incorporated to the minimum/maximum shift:
-                                    "sel": use the error of the minimum and maximum peaks
-                                    "max": use the maximum error
-                                    "mean": use the mean error
-                                    "rms": use the rms error
-
-    Outputs:    - lx            Limits in the x-dimension
-                - ly            Limits in the y-dimension
+    lims : list
+        List of limits in the two dimensions of the spectrum.
     """
 
     # Initialize limits
-    lx = np.ones(2) * np.mean(all_shifts[0][:,0])
-    ly = np.ones(2) * np.mean(all_shifts[0][:,1])
+    lx = np.ones(2) * np.mean(all_shifts[0][:, 0])
+    ly = np.ones(2) * np.mean(all_shifts[0][:, 1])
 
     # Get minimum and maximum peak of each distribution in each dimension
     for shifts, errs in zip(all_shifts, all_errs):
-        imin_x = np.argmin(shifts[:,0])
-        imax_x = np.argmax(shifts[:,0])
-        imin_y = np.argmin(shifts[:,1])
-        imax_y = np.argmax(shifts[:,1])
+        imin_x = np.argmin(shifts[:, 0])
+        imax_x = np.argmax(shifts[:, 0])
+        imin_y = np.argmin(shifts[:, 1])
+        imax_y = np.argmax(shifts[:, 1])
 
         # Add the corresponding errors to the minimum and maximum peaks
         if dx == "sel":
@@ -371,7 +374,9 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
             min_y = shifts[imin_y, 1] - my
             max_y = shifts[imax_y, 1] + my
         else:
-            raise ValueError("Unknown dx: {} (accepted values: 'sel', 'max', 'mean', 'rms')".format(dx))
+            pp = f"Unknown dx: {dx} "
+            pp += "(accepted values: 'sel', 'max', 'mean', 'rms')"
+            raise ValueError(pp)
 
         # Get the limits
         lx[0] = min(lx[0], min_x)
@@ -390,201 +395,245 @@ def get_lims_2D(all_shifts, all_errs, conv_x, conv_y, dqsq=False, extend=0.1, dx
     ly[1] += extend * ry
 
     if dqsq:
-        lims = np.array([np.sort(lx*conv_x[0]+conv_x[1]), np.sort(ly*conv_y[0]+conv_y[1])+np.sort(lx*conv_x[0]+conv_x[1])])
+        lims = np.array([
+            np.sort(lx*conv_x[0]+conv_x[1]),
+            np.sort(ly*conv_y[0]+conv_y[1])+np.sort(lx*conv_x[0]+conv_x[1])
+        ])
     else:
-        lims = np.array([np.sort(lx*conv_x[0]+conv_x[1]), np.sort(ly*conv_y[0]+conv_y[1])])
+        lims = np.array([
+            np.sort(lx*conv_x[0]+conv_x[1]),
+            np.sort(ly*conv_y[0]+conv_y[1])
+        ])
 
     return lims
 
 
-
-def make_1D_distribution(x, shifts, errs, norm=None, max_shifts=None, seed=None):
-    """
-    Generate 1D distribution of chemical shifts from an array of shifts and errors
+def make_1D_distribution(
+    x,
+    shifts,
+    errs,
+    norm=None,
+    max_shifts=None
+):
+    """Generate a 1D distribution of chemical shifts from shifts and errors.
 
     Parameters
     ----------
+    x : array_like
+        Points in the x-axis to draw the distribution on.
+    shifts : array_like
+        List of shifts in the distribution.
+    errs : array_like
+        List of prediction errors in the distribution.
+    norm : None or str, default=None
+        Normalization to apply. `None` for no normalization,
+        "max" to set the top of the distribution to 1.
+    max_shifts: None or int, default=None
+        Maximum number of shifts to consider when constructing
+        the distribution. If `None`, use all shifts.
 
     Returns
     -------
-
-    Inputs: - x             Points in the x-axis to draw the Gaussians on
-            - shifts        List of shifts in the distribution
-            - errs          List of predicted errors in the distribution
-            - norm          Distribution normalization to apply
-                                None: no normalization
-                                "max": top of the distribution set to 1
-            - max_shifts    Maximum number of shifts to consider when constructing the distribution
-            - seed          Seed for the random selection of shifts
-
-    Output: - y         Value of the distribution at each point of x
+    y : Numpy ndarray
+        Value of the distribution at each point of x.
     """
 
-    # Initialize y array
-    y = np.zeros_like(x)
-
-    # If there are too many shifts, randomly select a subset of length max_shifts
+    # If there are too many shifts,
+    # randomly select a subset of length max_shifts
     if max_shifts is not None and max_shifts < len(shifts):
-        if seed is not None:
-            np.random.seed(seed)
-            
         inds = np.random.choice(len(shifts), max_shifts, replace=False)
-        
-        # Add the Gaussians
-        for x0, w in zip(shifts[inds], errs[inds]):
-            y += 1. / (w * np.sqrt(2. * np.pi)) * np.exp(np.square(x - x0)/(-2. * np.square(w)))
 
-    # Otherwise, use all shifts
     else:
-        # Add the Gaussians
-        for x0, w in zip(shifts, errs):
-            y += 1. / (w * np.sqrt(2. * np.pi)) * np.exp(np.square(x - x0)/(-2. * np.square(w)))
+        inds = np.arange(len(shifts))
 
-    # Return the non-normalized sum
-    if norm is None:
-        return y
+    # Add the Gaussians
+    y = np.zeros_like(x)
+    for x0, w in zip(shifts[inds], errs[inds]):
+        y += np.exp(
+            np.square(x - x0)/(-2. * np.square(w))
+        ) / (
+            w * np.sqrt(2. * np.pi)
+        )
+
     # Normalize the maximum value to one
-    elif norm == "max":
-        return y/np.max(y)
-    else:
-        raise ValueError("Unknown normalization: {}".format(norm))
+    if norm == "max":
+        y /= np.max(y)
+    elif norm is not None:
+        raise ValueError(f"Unknown normalization: {norm}")
+
+    return y
 
 
-
-def make_1D_distributions(lims, n_points, all_shifts, all_errs, conv, norm=None, max_shifts=None, seed=None):
-    """
-    Generate 1D distributions of chemical shifts from arrays of shifts and errors of each distribution
+def make_1D_distributions(
+    lims,
+    n_points,
+    all_shifts,
+    all_errs,
+    conv,
+    norm=None,
+    max_shifts=None
+):
+    """Generate 1D distributions of chemical shifts from shifts and errors.
 
     Parameters
     ----------
+    lims : array_like
+        Limits of the distributions.
+    n_points : int
+        Number of points in the distribution.
+    all_shifts : array_like
+        List of the array of shifts for each distribution.
+    all_errs : array_like
+        List of the array of predicted uncertainties for each distribution.
+    conv : array_like
+        Shielding to shift conversion.
+    norm : None or str, default=None
+        Distribution normalization to apply.
+        "max": set the top of the distributions to one.
+    max_shifts : None or int, default=None
+        Maximum number of shifts to consider to construct one distribution.
 
     Returns
     -------
-    
-    Inputs:     - lims          Limits of the distributions
-                - n_points      Number of points in the distributions
-                - all_shifts    Array of shifts for each distribution
-                - all_errs      Array of predicted error for each distribution
-                - conv          Shielding to shift conversion
-                - norm          Distribution normalization to apply
-                                    None: no normalization
-                                    "max": top of each distribution set to 1
-                - max_shifts    Maximum number of shifts to consider when constructing the distribution
-                - seed          Seed for the random selection of shifts
-    
-    Outputs:    - x             Array of shielding values to plot the distributions against
-                - ys            List of distributions
+    x : Numpy ndarray
+        Array of shift values to plot the distributions on.
+    ys : list
+        List of distributions generated.
     """
-    
+
     # Construct the array of shielding values
     x = np.linspace(lims[0], lims[1], n_points)
-    
+
     # Generate the distributions
     ys = []
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
-        print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
-        ys.append(make_1D_distribution(x, sh*conv[0]+conv[1], er*np.abs(conv[0]), norm=norm, max_shifts=max_shifts, seed=seed))
+        print(f"  Constructing distribution {i+1}/{len(all_shifts)}...")
+        ys.append(
+            make_1D_distribution(
+                x,
+                sh*conv[0]+conv[1],
+                er*np.abs(conv[0]),
+                norm=norm,
+                max_shifts=max_shifts
+            )
+        )
         print("  Distribution constructed!\n")
 
-
-
     return x, ys
-    
-    
-    
-def make_2D_distribution(x, y, shifts, errs, norm=None, max_shifts=None, seed=None):
-    """
+
+
+def make_2D_distribution(
+    x,
+    y,
+    shifts,
+    errs,
+    norm=None,
+    max_shifts=None
+):
+    """Generate a 2D distribution of chemical shifts from shifts and errors.
 
     Parameters
     ----------
+    x : array_like
+        Points in the x-axis to draw the distribution on.
+    y : array_like
+        Points in the y-axis to draw the distribution on.
+    shifts : array_like
+        List of 2D shifts in the distribution.
+    errs : array_like
+        List of 2D prediction errors in the distribution.
+    norm : None or str, default=None
+        Normalization to apply. `None` for no normalization,
+        "max" to set the top of the distribution to 1.
+    max_shifts: None or int, default=None
+        Maximum number of shifts to consider when constructing
+        the distribution. If `None`, use all shifts.
 
     Returns
     -------
-    
-    Inputs: - x             Array of x-values to draw the Gaussians on
-            - y             Array of y-values to draw the Gaussians on
-            - shifts        List of shifts in the distribution
-            - errs          List of predicted errors in the distribution
-            - dqsq          Whether or not the second dimension is double quantum
-            - norm          Distribution normalization to apply
-                                None: no normalization
-                                "max": top of the distribution set to 1
-            - max_shifts    Maximum number of shifts to consider when constructing the distribution
-            - seed          Seed for the random selection of shifts
-    
-    Output: - Z             Value of the distribution at each point of the X-Y grid
+    zz : Numpy ndarray
+        Value of the distribution at each point of the xy grid.
     """
-    
-    # Initialize Z array
-    Z = np.zeros((y.shape[0], x.shape[0]))
-    
-    # If there are too many shifts, randomly select a subset of length max_shifts
-    if max_shifts is  not None and max_shifts < len(shifts):
-        if seed is not None:
-            np.random.seed(seed)
-        
+
+    # Initialize zz array
+    zz = np.zeros((y.shape[0], x.shape[0]))
+
+    # If there are too many shifts,
+    # randomly select a subset of length max_shifts
+    if max_shifts is not None and max_shifts < len(shifts):
         inds = np.random.choice(len(shifts), max_shifts, replace=False)
-        
-        # Add the 2D Gaussians
-        for [x0, y0], [wx, wy] in zip(shifts[inds], errs[inds]):
-            gx = np.exp(np.square(x - x0) / (-2. * np.square(wx))) / wx
-            gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
-            Z += np.outer(gy, gx) / (2. * np.pi)
-    
-    # Otherwise, use all shifts
+
     else:
-        # Add the 2D Gaussians
-        for [x0, y0], [wx, wy] in zip(shifts, errs):
-            gx = np.exp(np.square(x - x0) / (-2. * np.square(wx))) / wx
-            gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
-            Z += np.outer(gy, gx) / (2. * np.pi)
-    
-    if norm is None:
-        return Z
-    elif norm == "max":
-        return Z / np.max(Z)
-    else:
-        raise ValueError("Unknown normalization: {}".format(norm))
+        inds = np.arange(len(shifts))
+
+    # Add the 2D Gaussians
+    for [x0, y0], [wx, wy] in zip(shifts[inds], errs[inds]):
+        gx = np.exp(np.square(x - x0) / (-2. * np.square(wx))) / wx
+        gy = np.exp(np.square(y - y0) / (-2. * np.square(wy))) / wy
+        zz += np.outer(gy, gx) / (2. * np.pi)
+
+    if norm == "max":
+        zz /= np.max(zz)
+    elif norm is not None:
+        raise ValueError(f"Unknown normalization: {norm}")
+
+    return zz
 
 
-
-def make_2D_distributions(lims, n_points, all_shifts, all_errs, conv_x, conv_y, dqsq=False, norm=None, max_shifts=None, seed=None):
-    """
-    Generate 2D distributions of chemical shifts from arrays of shifts and errors of each distribution
+def make_2D_distributions(
+    lims,
+    n_points,
+    all_shifts,
+    all_errs,
+    conv_x,
+    conv_y,
+    dqsq=False,
+    norm=None,
+    max_shifts=None
+):
+    """Generate 2D distributions of chemical shifts from shifts and errors.
 
     Parameters
     ----------
+    lims : array_like
+        Limits of the distributions.
+    n_points : int
+        Number of points in each dimension of the distribution.
+    all_shifts : array_like
+        List of the array of 2D shifts for each distribution.
+    all_errs : array_like
+        List of the array of 2D predicted uncertainties for each distribution.
+    conv_x : array_like
+        Shielding to shift conversion in the x-dimension.
+    conv_y : array_like
+        Shielding to shift conversion in the y-dimension.
+    dqsq : bool, default=False
+        Whether or not the second dimension is second quantum.
+    norm : None or str, default=None
+        Distribution normalization to apply.
+        "max": set the top of the distributions to one.
+    max_shifts : None or int, default=None
+        Maximum number of shifts to consider to construct one distribution.
 
     Returns
     -------
-    
-    Inputs:     - lims          Limits of the distributions
-                - n_points      Number of points in the distributions
-                - all_shifts    Array of shifts for each distribution
-                - all_errs      Array of predicted error for each distribution
-                - conv_x        Shielding to shift conversion parameters in the x axis
-                - conv_y        Shielding to shift conversion parameters in the y axis
-                - dqsq          Whether or not the second dimension is double quantum
-                - norm          Distribution normalization to apply
-                                    None: no normalization
-                                    "max": top of each distribution set to 1
-                - max_shifts    Maximum number of shifts to consider when constructing the distribution
-                - seed          Seed for the random selection of shifts
-    
-    Outputs:    - X             Grid of shielding values (first dimension) to plot the distributions against
-                - Y             Grid of shielding values (second dimension) to plot the distributions against
-                - Zs            List of distributions
+    xx : Numpy ndarray
+        Array of shift values in the x-dimension to plot the distributions on.
+    yy : Numpy ndarray
+        Array of shift values in the y-dimension to plot the distributions on.
+    zzs : list
+        List of distributions generated.
     """
-    
+
     # Generate grid of X and Y values
-    x = np.linspace(lims[0,0], lims[0,1], n_points)
-    y = np.linspace(lims[1,0], lims[1,1], n_points)
-    X, Y = np.meshgrid(x, y)
-    
+    x = np.linspace(lims[0, 0], lims[0, 1], n_points)
+    y = np.linspace(lims[1, 0], lims[1, 1], n_points)
+    xx, yy = np.meshgrid(x, y)
+
     # Generate the distributions
-    Zs = []
+    zzs = []
     for i, (sh, er) in enumerate(zip(all_shifts, all_errs)):
-        print("  Constructing distribution {}/{}...".format(i+1, len(all_shifts)))
+        print(f"  Constructing distribution {i+1}/{len(all_shifts)}...")
         sh2 = sh.copy()
         er2 = er.copy()
         sh2[:, 0] = sh2[:, 0]*conv_x[0]+conv_x[1]
@@ -594,168 +643,227 @@ def make_2D_distributions(lims, n_points, all_shifts, all_errs, conv_x, conv_y, 
         if dqsq:
             sh2[:, 1] += sh2[:, 0]
             er2[:, 1] = np.sqrt(np.square(er2[:, 0]) + np.square(er2[:, 1]))
-        Zs.append(make_2D_distribution(x, y, sh2, er2, norm=norm, max_shifts=max_shifts, seed=seed))
+        zzs.append(
+            make_2D_distribution(
+                x,
+                y,
+                sh2,
+                er2,
+                norm=norm,
+                max_shifts=max_shifts
+            )
+        )
         print("  Distribution constructed!\n")
-    
-    return X, Y, Zs
 
+    return xx, yy, zzs
 
 
 def get_distribution_max_1D(x, ys):
-    """
-    Obtain the maximum of each distribution
+    """Obtain the maximum of 1D distributions.
 
     Parameters
     ----------
+    x : array_like
+        Array of shielding values to plot the distributions against.
+    ys : list
+        List of distributions.
 
     Returns
     -------
-    
-    Inputs: - x         Array of shielding values to plot the distributions against
-            - ys        List of distributions
-    
-    Output: - centers   Maximum of each distribution
+    centers : Numpy ndarray
+        Array of the maximum of each distribution.
     """
-    
+
     # Initialize array of centers
     centers = []
-    
-    # Get the center of each distribution (withing the set of shielding values considered)
+
+    # Get the center of each distribution
+    # (withing the set of shift values considered)
     for i, y in enumerate(ys):
-        inds = np.where(y == np.max(y))[0]
-        
-        if 0 in inds or (len(y) - 1) in inds:
-            msg = "    WARNING: the maximum of distribution {} is at the edge of the"
-            msg += " chemical shielding range! Consider expanding the range!".format(i+1)
+        ind = np.argmax(y)
+
+        if ind == 0 or ind == len(y)-1:
+            msg = f"    WARNING: the maximum of distribution {i+1}"
+            msg += " is at the edge of the chemical shielding range!"
+            msg += " Consider expanding the range!"
             print(msg)
-        
-        centers.append(x[inds[0]])
-    
+
+        centers.append(x[ind])
+
     return np.array(centers)
 
 
-
-def get_distribution_max_2D(X, Y, Zs):
-    """
-    Obtain the maximum of each distribution
+def get_distribution_max_2D(xx, yy, zzs):
+    """Obtain the maximum of 2D distributions.
 
     Parameters
     ----------
+    xx : Numpy ndarray
+        2D array of shielding values in the first dimension
+        to plot the distributions against.
+    yy : Numpy ndarray
+        2D array of shielding values in the second dimension
+        to plot the distributions against.
+    zzs : list
+        List of distributions.
 
     Returns
     -------
-
-    Inputs: - X         Grid of shielding values of the first element to plot the distribution against
-            - Y         Grid of shielding values of the second element to plot the distribution against
-            - Zs        List of distributions
-
-    Output: - centers   Maximum of the distributions
+    centers : Numpy ndarray
+        Array of the maximum of each distribution.
     """
 
-    #Initialize array of centers
+    # Initialize array of centers
     centers = []
 
     # Get the center of each distribution (within the set X and Y values)
-    for i, Z in enumerate(Zs):
-    
-        inds_x, inds_y = np.where(Z == np.max(Z))
-        
-        if 0 in inds_x or 0 in inds_y or (Z.shape[0] - 1) in inds_x or (Z.shape[1] - 1) in inds_y:
-            msg = "    WARNING: the maximum of distribution {} is at the edge of the"
-            msg += " chemical shielding range! Consider expanding the range!".format(i+1)
+    for i, zz in enumerate(zzs):
+
+        ind_x, ind_y = np.unravel_index(np.argmax(zz), zz.shape)
+
+        if (
+            ind_x == 0 or
+            ind_y == 0 or
+            ind_x == zz.shape[0]-1 or
+            ind_y == zz.shape[1]-1
+        ):
+            msg = f"    WARNING: the maximum of distribution {i+1}"
+            msg += " is at the edge of the chemical shielding range!"
+            msg += " Consider expanding the range!"
             print(msg)
-        
-        centers.append([X[inds_x[0], inds_y[0]], Y[inds_x[0], inds_y[0]]])
+
+        centers.append([xx[ind_x, ind_y], yy[ind_x, ind_y]])
 
     return np.array(centers)
 
 
-
-def compute_scores_1D(exp, shifts, errs, conv, max_shifts=None, seed=None, acc=None, N=101):
-    """
-    Compute the scores for every possible assignment. If the variable "acc" is set to None, the probability density
-    at the experimental shift yields the score. If "acc" is set to a value, the probability between
-    the experimental shift e - acc and e + acc (computed as the numerical integral) is used as the score.
+def compute_scores_1D(
+    exp,
+    shifts,
+    errs,
+    conv,
+    max_shifts=None,
+    acc=None,
+    n_points=101
+):
+    """Compute individual assignment scores for 1D distributions.
 
     Parameters
     ----------
+    exp : array_like
+        Array of experimental shifts.
+    shifts : array_like
+        Array of shifts in each distribution.
+    errs : array_like
+        Array of prediction errors in each distribution.
+    conv : array_like
+        Shielding to shift conversion.
+    max_shifts : None or int, default=None
+        If set, maximum number of shifts to select
+        to construct the distribution.
+    acc : None or float, default=None
+        If set, accuracy of the shift predictions.
+    n_points : int, default=101
+        Number of points in each shift (if `acc` is set).
 
     Returns
     -------
-    
-    Inputs: - exp           List of experimental shifts
-            - shifts        List of shifts in each distribution
-            - errs          List of errors in each distribution
-            - conv          Conversion factors [slope, offset] from shielding to shift
-            - max_shifts    Maximum number of shifts to select to construct the distribution
-            - seed          Seed for random selection of shifts
-            - acc           Accuracy of the shifts
-            - N             Number of points in each shift if an accuracy is set
-    
-    Output: - scores    Matrix of scores for all possible assignments
+    scores : Numpy ndarray
+        Array of individual assignment scores.
     """
-    
+
     # Initialize array of scores
     scores = np.zeros((len(shifts), len(exp)))
-    
+
     # If no accuracy is set, take the shifts as elements of the array x
     if acc is None:
         x = np.array(exp)
-    # Otherwise, append the array of N element between e - acc and e + acc to x, for each shift e
+    # Otherwise, append the array of n_points element
+    # between e - acc and e + acc to x, for each shift e
     else:
         x = []
         for e in exp:
-            x.extend(list(np.linspace(e-acc, e+acc, N)))
+            x.extend(list(np.linspace(e-acc, e+acc, n_points)))
         x = np.array(x)
-    
+
     # Loop over all distributions
     for i, (sh, er) in enumerate(zip(shifts, errs)):
-        print("  Evaluating distribution {}/{}...".format(i+1, len(shifts)))
+        print(f"  Evaluating distribution {i+1}/{len(shifts)}...")
         # Compute the values of the distribution on the array x
-        y = make_1D_distribution(x, sh*conv[0]+conv[1], er, max_shifts=max_shifts, seed=seed)
-        
+        y = make_1D_distribution(
+            x,
+            sh*conv[0]+conv[1],
+            er,
+            max_shifts=max_shifts
+        )
+
         # If an accuracy is set, get the integral
         if acc is not None:
             y2 = []
             for j in range(len(exp)):
-                y2.append(np.trapz(y[j*N:(j+1)*N], x=x[j*N:(j+1)*N]))
+                y2.append(
+                    np.trapz(
+                        y[j*n_points:(j+1)*n_points],
+                        x=x[j*n_points:(j+1)*n_points]
+                    )
+                )
             y = np.array(y2)
-        
+
         # Append the scores of this distribution
         if np.sum(y) < 1e-6:
-            print("    WARNING: Distribution {} does not seem to match any experimental shift".format(i+1))
+            msg = f"    WARNING: Distribution {i+1} does not"
+            msg += " seem to match any experimental shift"
+            print(msg)
+
         scores[i] = y / np.sum(y)
         print("  Done!\n")
-    
+
     return scores
 
 
-
-def compute_scores_2D(exp, shifts, errs, conv_x, conv_y, dqsq=False, max_shifts=None, seed=None, acc_x=None, acc_y=None, N=101):
-    """
-    Compute the scores for every possible assignment. If the variable "acc_x/acc_y" is set to None, the probability density
-    at the experimental shift yields the score. If "acc_x/acc_y" are set to numerical values, the probability between
-    the experimental shift e - acc and e + acc in each dimension (computed as the numerical integral) is used as the score.
+def compute_scores_2D(
+    exp,
+    shifts,
+    errs,
+    conv_x,
+    conv_y,
+    dqsq=False,
+    max_shifts=None,
+    seed=None,
+    acc_x=None,
+    acc_y=None,
+    n_points=101
+):
+    """Compute individual assignment scores for 2D distributions.
 
     Parameters
     ----------
+    exp : array_like
+        Array of experimental shifts.
+    shifts : array_like
+        Array of 2D shifts in each distribution.
+    errs : array_like
+        Array of 2D prediction errors in each distribution.
+    conv_x : array_like
+        Shielding to shift conversion in the first dimension.
+    conv_y : array_like
+        Shielding to shift conversion in the second dimension.
+    dqsq : bool, default=False
+        Whether or not the second dimension is double quantum.
+    max_shifts : None or int, default=None
+        If set, maximum number of shifts to select
+        to construct the distribution.
+    acc_x : None or float, default=None
+        If set, accuracy of the shift predictions in the first dimension.
+    acc_y : None or float, default=None
+        If set, accuracy of the shift predictions in the second dimension.
+    n_points : int, default=101
+        Number of points in each shift (if `acc` is set), in each dimension.
 
     Returns
     -------
-
-    Inputs: - exp           List of experimental shifts
-            - shifts        List of shifts in each distribution
-            - errs          List of errors in each distribution
-            - conv_x        Conversion factors [slope, offset] from shielding to shift in the x-axis
-            - conv_y        Conversion factors [slope, offset] from shielding to shift in the y-axis
-            - dqsq          Whether or not the second dimension is double quantum
-            - max_shifts    Maximum number of shifts to select to construct the distribution
-            - seed          Seed for random selection of shifts
-            - acc_x         Accuracy of the shifts in the x dimension
-            - acc_y         Accuracy of the shifts in the y dimension
-            - N             Number of points in each shift (along each axis) if an accuracy is set
-
-    Output: - scores        Matrix of scores for all possible assignments
+    scores : Numpy ndarray
+        Array of individual assignment scores.
     """
 
     # Initialize matrix of scores
@@ -763,79 +871,114 @@ def compute_scores_2D(exp, shifts, errs, conv_x, conv_y, dqsq=False, max_shifts=
 
     # If no accuracy is set, set x- and y-axes as the experimental shifts
     if acc_x is None and acc_y is None:
-        x = np.array(exp)[:,0]
-        y = np.array(exp)[:,1]
-            
+        x = np.array(exp)[:, 0]
+        y = np.array(exp)[:, 1]
+
     # Accuracy set only in the x-axis
     elif acc_y is None:
         x = []
         for e in exp:
-            x.extend(list(np.linspace(e[0]-acc_x, e[0]+acc_x, N)))
+            x.extend(list(np.linspace(e[0]-acc_x, e[0]+acc_x, n_points)))
         x = np.array(x)
-        y = np.array(exp)[:,1]
-    
+        y = np.array(exp)[:, 1]
+
     # Accuracy set only in the y-axis
     elif acc_x is None:
         y = []
         for e in exp:
-            y.extend(list(np.linspace(e[1]-acc_y, e[1]+acc_y, N)))
+            y.extend(list(np.linspace(e[1]-acc_y, e[1]+acc_y, n_points)))
         y = np.array(y)
-        x = np.array(exp)[:,0]
-        
+        x = np.array(exp)[:, 0]
+
     # Accuracy set in both axes
     else:
         x = []
         y = []
         for e in exp:
-            x.extend(list(np.linspace(e[0]-acc_x, e[0]+acc_x, N)))
-            y.extend(list(np.linspace(e[1]-acc_y, e[1]+acc_y, N)))
+            x.extend(list(np.linspace(e[0]-acc_x, e[0]+acc_x, n_points)))
+            y.extend(list(np.linspace(e[1]-acc_y, e[1]+acc_y, n_points)))
         x = np.array(x)
         y = np.array(y)
 
     # Loop over all distributions
     for i, (s, er) in enumerate(zip(shifts, errs)):
-    
+
         print("  Evaluating distribution {}/{}...".format(i+1, len(shifts)))
-        
+
         sh2 = np.zeros_like(s)
-        sh2[:,0] = s[:,0]*conv_x[0]+conv_x[1]
-        sh2[:,1] = s[:,1]*conv_y[0]+conv_y[1]
+        sh2[:, 0] = s[:, 0]*conv_x[0]+conv_x[1]
+        sh2[:, 1] = s[:, 1]*conv_y[0]+conv_y[1]
         er2 = er.copy()
         er2[:, 0] *= np.abs(conv_x[0])
         er2[:, 1] *= np.abs(conv_y[0])
         if dqsq:
             sh2[:, 1] += sh2[:, 0]
             er2[:, 1] = np.sqrt(np.square(er2[:, 0])+np.square(er2[:, 1]))
-    
-        # If no accuracy is set, Compute the values of the distribution on the grid of experimental shifts
+
+        # If no accuracy is set, Compute the values of the distribution
+        # on the grid of experimental shifts
         if acc_x is None and acc_y is None:
-            Z = make_2D_distribution(x, y, sh2, er2, max_shifts=max_shifts, seed=seed)
-            these_scores = np.diag(Z)
-        
-        # If accuracy is set only along the x-axis, integrate over the range set
+            zz = make_2D_distribution(x, y, sh2, er2, max_shifts=max_shifts)
+            these_scores = np.diag(zz)
+
+        # If accuracy is set only along the x-axis,
+        # integrate over the range set
         elif acc_y is None:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x[j*N:(j+1)*N], y, sh2, er2, max_shifts=max_shifts, seed=seed)
-                these_scores[j] = np.trapz(Z[j], x=x[j*N:(j+1)*N])
-        
-        # If accuracy is set only along the y-axis, integrate over the range set
+                zz = make_2D_distribution(
+                    x[j*n_points:(j+1)*n_points],
+                    y,
+                    sh2,
+                    er2,
+                    max_shifts=max_shifts
+                )
+                these_scores[j] = np.trapz(
+                    zz[j],
+                    x=x[j*n_points:(j+1)*n_points]
+                )
+
+        # If accuracy is set only along the y-axis,
+        # integrate over the range set
         elif acc_x is None:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x, y[j*N:(j+1)*N], sh2, er2, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
-                these_scores[j] = np.trapz(Z[:, j], x=y[j*N:(j+1)*N])
-        
+                zz = make_2D_distribution(
+                    x,
+                    y[j*n_points:(j+1)*n_points],
+                    sh2,
+                    er2,
+                    dqsq=dqsq,
+                    max_shifts=max_shifts
+                )
+                these_scores[j] = np.trapz(
+                    zz[:, j],
+                    x=y[j*n_points:(j+1)*n_points]
+                )
+
         # If accuracy is set along both axes, integrate over the rectangle set
         else:
             these_scores = np.zeros(len(exp))
             for j in range(len(exp)):
-                Z = make_2D_distribution(x[j*N:(j+1)*N], y[j*N:(j+1)*N], sh2, er2, dqsq=dqsq, max_shifts=max_shifts, seed=seed)
-                these_scores[j] = np.trapz(np.trapz(Z, x=x[j*N:(j+1)*N]), x=y[j*N:(j+1)*N])
-        
+                zz = make_2D_distribution(
+                    x[j*n_points:(j+1)*n_points],
+                    y[j*n_points:(j+1)*n_points],
+                    sh2,
+                    er2,
+                    dqsq=dqsq,
+                    max_shifts=max_shifts
+                )
+                these_scores[j] = np.trapz(
+                    np.trapz(zz, x=x[j*n_points:(j+1)*n_points]),
+                    x=y[j*n_points:(j+1)*n_points]
+                )
+
         if np.sum(these_scores) < 1e-6:
-            print("    WARNING: Distribution {} does not seem to match any experimental shift".format(i+1))
+            msg = f"    WARNING: Distribution {i+1} does not seem"
+            msg += " to match any experimental shift"
+            print(msg)
+
         scores[i] = these_scores / np.sum(these_scores)
         print("  Done!\n")
-    
+
     return scores
